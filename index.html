@@ -10,9 +10,6 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
 
-<link href="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/3.6.2/maplibre-gl.min.css" rel="stylesheet" />
-<script src="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/3.6.2/maplibre-gl.min.js"></script>
-
 <style>
   :root{
     --void:#0a0710;
@@ -128,8 +125,9 @@
   }
 
   /* ---------- BOTTOM: the mortal map ---------- */
-  #mapWrap{ position:relative; overflow:hidden; background:var(--deep); }
+  #mapWrap{ position:relative; overflow:hidden; background:var(--deep); touch-action:none; }
   #map{ position:absolute; inset:0; }
+  #ghostMap{ position:absolute; inset:0; width:100%; height:100%; display:none; }
   /* alchemical dark transmutation of the base cartography */
   #map .maplibregl-canvas{
     filter:invert(.92) hue-rotate(205deg) saturate(.55) brightness(.82) contrast(1.08);
@@ -209,8 +207,69 @@
     border-radius:2px;
     opacity:0; transition:opacity .6s ease;
     pointer-events:none; white-space:nowrap;
+    max-width:92%; overflow:hidden; text-overflow:ellipsis;
   }
   .geo-note.show{ opacity:1; }
+
+  /* ---------- DIAGNOSTICS (WhatsUpDocMD-style raw error surfacing) ---------- */
+  .diag-btn{
+    position:absolute; left:14px;
+    bottom:calc(env(safe-area-inset-bottom, 0px) + 74px);
+    z-index:40;
+    width:34px; height:34px;
+    display:flex; align-items:center; justify-content:center;
+    background:rgba(10,7,16,.8);
+    border:1px solid rgba(142,163,199,.35);
+    border-radius:50%;
+    color:var(--mist); font-size:14px;
+    cursor:pointer;
+  }
+  .diag-btn .badge{
+    position:absolute; top:-4px; right:-4px;
+    min-width:15px; height:15px; padding:0 3px;
+    display:none; align-items:center; justify-content:center;
+    background:var(--ember); color:#fff;
+    border-radius:8px; font-size:9px; font-weight:600;
+  }
+  .diag-btn.has-errors{ border-color:var(--ember); color:var(--ember); }
+  .diag-btn.has-errors .badge{ display:flex; }
+
+  .diag-panel{
+    position:absolute; left:10px; right:10px;
+    bottom:calc(env(safe-area-inset-bottom, 0px) + 116px);
+    max-height:42%;
+    z-index:41;
+    display:none; flex-direction:column;
+    background:rgba(8,6,14,.96);
+    border:1px solid rgba(227,176,75,.4);
+    border-radius:4px;
+    box-shadow:0 8px 30px rgba(0,0,0,.8);
+    overflow:hidden;
+  }
+  .diag-panel.open{ display:flex; }
+  .diag-head{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:8px 12px;
+    border-bottom:1px solid rgba(227,176,75,.2);
+    font-size:10px; letter-spacing:.18em; text-transform:uppercase;
+    color:var(--gold);
+  }
+  .diag-head .actions{ display:flex; gap:8px; }
+  .diag-head button{
+    background:none; border:1px solid rgba(142,163,199,.4);
+    color:var(--mist); font-size:9px; letter-spacing:.1em;
+    padding:3px 9px; border-radius:2px; cursor:pointer;
+    font-family:'Inter',sans-serif;
+  }
+  #diagLog{
+    overflow-y:auto; -webkit-overflow-scrolling:touch;
+    padding:8px 12px;
+    font-family:ui-monospace,'SF Mono',Menlo,monospace;
+    font-size:10px; line-height:1.55;
+    color:#b9c2d8; white-space:pre-wrap; word-break:break-word;
+  }
+  #diagLog .err{ color:#f08a6a; }
+  #diagLog .ok{ color:#a8c48a; }
 
   @media (prefers-reduced-motion: reduce){
     .threshold .gem{ animation:none; }
@@ -261,9 +320,10 @@
   <!-- BOTTOM HALF — the mortal map -->
   <section id="mapWrap" aria-label="Interactive map">
     <div id="map"></div>
+    <canvas id="ghostMap"></canvas>
     <div class="map-tint"></div>
     <div class="map-vignette"></div>
-    <div class="map-label">Mortal Cartography</div>
+    <div class="map-label" id="mapLabel">Mortal Cartography</div>
     <div class="geo-note" id="geoNote"></div>
     <button class="recenter" id="recenterBtn" aria-label="Return to my location">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
@@ -272,220 +332,195 @@
         <path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
       </svg>
     </button>
+
+    <button class="diag-btn" id="diagBtn" aria-label="Diagnostics">
+      ✦<span class="badge" id="diagBadge">0</span>
+    </button>
+    <div class="diag-panel" id="diagPanel">
+      <div class="diag-head">
+        <span>Scrying Glass · Diagnostics</span>
+        <span class="actions">
+          <button id="diagCopy">Copy</button>
+          <button id="diagClose">Close</button>
+        </span>
+      </div>
+      <div id="diagLog"></div>
+    </div>
   </section>
 
 <script>
 /* =====================================================================
-   VEILWALKER — split-screen mockup
-   Bottom: live MapLibre map (OpenFreeMap vector tiles, dark transmuted)
-   Top: procedural fantasy vista, seeded from world position and steered
-        by real map features (water, forest, buildings, roads).
+   VEILWALKER v2 — split-screen mockup
+   Boot order matters: diagnostics first, vista second (never blocked),
+   MapLibre loaded async with multi-CDN fallback, and a touch-drag
+   ghost map if every CDN fails. Raw errors surface on-screen.
    Design canon: void #0a0710 · gold #e3b04b · ember #d9603a
    ===================================================================== */
 
-const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+/* ============================================================
+   0. SCRYING GLASS — on-screen diagnostics (loads before all)
+   ============================================================ */
+var diagErrCount = 0;
+function logDiag(msg, level){
+  try{
+    var log = document.getElementById('diagLog');
+    var line = document.createElement('div');
+    var ts = new Date().toISOString().slice(11, 19);
+    line.textContent = '[' + ts + '] ' + msg;
+    if (level === 'err'){
+      line.className = 'err';
+      diagErrCount++;
+      var btn = document.getElementById('diagBtn');
+      btn.classList.add('has-errors');
+      document.getElementById('diagBadge').textContent = diagErrCount;
+      document.getElementById('diagPanel').classList.add('open');
+    } else if (level === 'ok'){
+      line.className = 'ok';
+    }
+    log.appendChild(line);
+    log.scrollTop = log.scrollHeight;
+  }catch(e){ /* diagnostics must never crash the app */ }
+}
+window.addEventListener('error', function(e){
+  var src = e.filename ? e.filename.split('/').pop() + ':' + e.lineno : '(inline)';
+  logDiag('ERROR ' + (e.message || 'unknown') + ' @ ' + src, 'err');
+});
+window.addEventListener('unhandledrejection', function(e){
+  var r = e.reason;
+  logDiag('PROMISE ' + (r && r.message ? r.message : String(r)), 'err');
+});
+document.getElementById('diagBtn').addEventListener('click', function(){
+  document.getElementById('diagPanel').classList.toggle('open');
+});
+document.getElementById('diagClose').addEventListener('click', function(){
+  document.getElementById('diagPanel').classList.remove('open');
+});
+document.getElementById('diagCopy').addEventListener('click', function(){
+  var text = document.getElementById('diagLog').innerText;
+  if (navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(
+      function(){ logDiag('log copied to clipboard', 'ok'); },
+      function(){ window.prompt('Copy diagnostics:', text); }
+    );
+  } else {
+    window.prompt('Copy diagnostics:', text);
+  }
+});
+logDiag('boot · ua: ' + navigator.userAgent.slice(0, 90));
 
-/* ---------- seeded PRNG (mulberry32) + value noise ---------- */
+/* ============================================================
+   1. SHARED STATE + UTILITIES
+   ============================================================ */
+var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
 function mulberry32(a){
   return function(){
     a |= 0; a = a + 0x6D2B79F5 | 0;
-    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    var t = Math.imul(a ^ a >>> 15, 1 | a);
     t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
     return ((t ^ t >>> 14) >>> 0) / 4294967296;
   };
 }
-function hash1(i, seed){
-  return mulberry32((i * 2654435761) ^ seed)();
-}
+function hash1(i, seed){ return mulberry32((i * 2654435761) ^ seed)(); }
 function smooth(t){ return t * t * (3 - 2 * t); }
 function vnoise(x, seed){
-  const i = Math.floor(x), f = x - i;
+  var i = Math.floor(x), f = x - i;
   return hash1(i, seed) * (1 - smooth(f)) + hash1(i + 1, seed) * smooth(f);
 }
 function fbm(x, seed){
   return vnoise(x, seed) * .55 + vnoise(x * 2.13, seed ^ 0x9e37) * .28 + vnoise(x * 4.7, seed ^ 0x51f2) * .17;
 }
+function lerp(a, b, t){ return a + (b - a) * t; }
 
-/* ---------- realm naming ---------- */
-const SYL_A = ['Vor','Ael','Thar','Nym','Kor','Mal','Ish','Dra','Vel','Umb','Cael','Ryn','Orr','Zar','Eth','Syl'];
-const SYL_B = ['athel','mar','\u2019dun','ath','oreth','wyn','gard','vaal','iel','myr','\u2019kesh','anor'];
-const REALM_KIND = ['Reach of','Vale of','Dominion of','Marches of','Hollow of','Crown of'];
-function realmNameFor(cellX, cellY){
-  const r = mulberry32((cellX * 73856093) ^ (cellY * 19349663) ^ 0xDA7A);
-  const kind = REALM_KIND[Math.floor(r() * REALM_KIND.length)];
-  return kind + ' ' + SYL_A[Math.floor(r() * SYL_A.length)] + SYL_B[Math.floor(r() * SYL_B.length)];
+var SYL_A = ['Vor','Ael','Thar','Nym','Kor','Mal','Ish','Dra','Vel','Umb','Cael','Ryn','Orr','Zar','Eth','Syl'];
+var SYL_B = ['athel','mar','\u2019dun','ath','oreth','wyn','gard','vaal','iel','myr','\u2019kesh','anor'];
+var REALM_KIND = ['Reach of','Vale of','Dominion of','Marches of','Hollow of','Crown of'];
+function realmNameFor(cx, cy){
+  var r = mulberry32((cx * 73856093) ^ (cy * 19349663) ^ 0xDA7A);
+  return REALM_KIND[Math.floor(r() * REALM_KIND.length)] + ' ' +
+         SYL_A[Math.floor(r() * SYL_A.length)] + SYL_B[Math.floor(r() * SYL_B.length)];
 }
 
-/* ---------- shared state ---------- */
-const FALLBACK = { lng:-71.0589, lat:42.3601 }; // Boston
-const target = { lng:FALLBACK.lng, lat:FALLBACK.lat, bearing:0, zoom:15.4 };
-const cur = { lateral:0, forward:0, bearing:0, zScale:1 };
-const scene = { water:0, forest:0, urban:.4, road:.4 };       // sampled targets
-const sceneCur = { water:0, forest:0, urban:.4, road:.4 };    // lerped for render
-let windVX = 0, lastLateral = 0;
-let realmCell = null;
-
-/* ---------- MAP (bottom half) ---------- */
-const map = new maplibregl.Map({
-  container:'map',
-  style:'https://tiles.openfreemap.org/styles/liberty',
-  center:[FALLBACK.lng, FALLBACK.lat],
-  zoom:15.4,
-  pitch:0,
-  attributionControl:{ compact:true },
-  dragRotate:true,
-  touchPitch:false
-});
-
-const markerEl = document.createElement('div');
-markerEl.className = 'rune-marker';
-markerEl.innerHTML = '<div class="ring"></div><div class="ring"></div><div class="core"></div>';
-const userMarker = new maplibregl.Marker({ element:markerEl }).setLngLat([FALLBACK.lng, FALLBACK.lat]).addTo(map);
+var FALLBACK = { lng:-71.0589, lat:42.3601 }; /* Boston */
+var target = { lng:FALLBACK.lng, lat:FALLBACK.lat, bearing:0, zoom:15.4 };
+var userPos = { lng:FALLBACK.lng, lat:FALLBACK.lat };
+var cur = { lateral:0, forward:0, bearing:0, zScale:1 };
+var scene = { water:0, forest:0, urban:.4, road:.4 };
+var sceneCur = { water:0, forest:0, urban:.4, road:.4 };
+var windVX = 0, lastLateral = 0, realmCell = null;
+var map = null, mapReady = false, userMarker = null;
 
 function showGeoNote(msg, ms){
-  const n = document.getElementById('geoNote');
+  var n = document.getElementById('geoNote');
   n.textContent = msg;
   n.classList.add('show');
-  setTimeout(()=> n.classList.remove('show'), ms || 3200);
+  clearTimeout(showGeoNote._t);
+  showGeoNote._t = setTimeout(function(){ n.classList.remove('show'); }, ms || 3600);
 }
 
-if (navigator.geolocation){
-  navigator.geolocation.getCurrentPosition(
-    pos => {
-      const { longitude:lng, latitude:lat } = pos.coords;
-      userMarker.setLngLat([lng, lat]);
-      map.jumpTo({ center:[lng, lat] });
-      showGeoNote('Your position is bound to the realm');
-    },
-    ()  => showGeoNote('Location veiled — showing a distant shore'),
-    { enableHighAccuracy:true, timeout:8000 }
-  );
-} else {
-  showGeoNote('Location veiled — showing a distant shore');
-}
-
-document.getElementById('recenterBtn').addEventListener('click', () => {
-  const ll = userMarker.getLngLat();
-  map.flyTo({ center:ll, zoom:15.4, bearing:0, speed:1.4 });
-});
-
-/* map movement -> vista state */
-function syncFromMap(){
-  const c = map.getCenter();
-  target.lng = c.lng; target.lat = c.lat;
-  target.bearing = map.getBearing();
-  target.zoom = map.getZoom();
-  updateHUD();
-  featureDirty = true;
-}
-map.on('move', syncFromMap);
-map.on('load', () => {
-  syncFromMap();
-  sampleFeatures();
-  const toast = document.getElementById('hintToast');
-  toast.classList.add('show');
-  setTimeout(()=> toast.classList.remove('show'), 4200);
-});
-
-/* ---------- feature sampling: the land shapes the realm ---------- */
-let featureDirty = false, lastSample = 0;
-function sampleFeatures(){
-  if (!map.isStyleLoaded()) return;
-  let water = 0, forest = 0, urban = 0, road = 0;
-  try{
-    const feats = map.queryRenderedFeatures();
-    for (const f of feats){
-      const id = ((f.layer && f.layer.id) || '').toLowerCase();
-      const sl  = (f.sourceLayer || '').toLowerCase();
-      if (id.includes('water') || sl === 'water') water++;
-      else if (id.includes('wood') || id.includes('forest') || id.includes('grass') || id.includes('park') || sl === 'park') forest++;
-      else if (id.includes('building') || sl === 'building') urban++;
-      else if (id.includes('transportation') || id.includes('highway') || id.includes('road') || sl.includes('transportation')) road++;
-    }
-  }catch(e){ /* style mid-load; keep previous scene */ }
-  scene.water  = Math.min(1, water  / 6);
-  scene.forest = Math.min(1, forest / 14);
-  scene.urban  = Math.min(1, urban  / 45);
-  scene.road   = Math.min(1, road   / 30);
-}
-setInterval(() => {
-  const now = performance.now();
-  if (featureDirty && now - lastSample > 480){
-    featureDirty = false; lastSample = now;
-    sampleFeatures();
-  }
-}, 240);
-
-/* ---------- HUD ---------- */
 function fmtCoord(lat, lng){
-  const ns = lat >= 0 ? 'N' : 'S', ew = lng >= 0 ? 'E' : 'W';
+  var ns = lat >= 0 ? 'N' : 'S', ew = lng >= 0 ? 'E' : 'W';
   return Math.abs(lat).toFixed(4) + '\u00B0 ' + ns + '  \u00B7  ' + Math.abs(lng).toFixed(4) + '\u00B0 ' + ew;
 }
-const realmNameEl = document.getElementById('realmName');
+var realmNameEl = document.getElementById('realmName');
 function updateHUD(){
   document.getElementById('coordText').textContent = fmtCoord(target.lat, target.lng);
   document.getElementById('compassRose').style.transform = 'rotate(' + (-target.bearing) + 'deg)';
-  const cx = Math.floor(target.lng * 50), cy = Math.floor(target.lat * 50); // ~2 km realm cells
-  const key = cx + ',' + cy;
+  var cx = Math.floor(target.lng * 50), cy = Math.floor(target.lat * 50);
+  var key = cx + ',' + cy;
   if (key !== realmCell){
     realmCell = key;
     realmNameEl.classList.add('fading');
-    setTimeout(() => {
+    setTimeout(function(){
       realmNameEl.textContent = realmNameFor(cx, cy);
       realmNameEl.classList.remove('fading');
     }, 260);
   }
 }
 
-/* =====================================================================
-   THE VISTA — procedural fantasy street view (top half)
-   ===================================================================== */
-const cvs = document.getElementById('vista');
-const ctx = cvs.getContext('2d');
-let W = 0, H = 0, DPR = 1;
-let starCvs = null;
+/* ============================================================
+   2. THE VISTA — boots immediately, independent of the map
+   ============================================================ */
+var cvs = document.getElementById('vista');
+var ctx = cvs.getContext('2d');
+var W = 0, H = 0, DPR = 1, starCvs = null;
 
-function resize(){
+function resizeVista(){
   DPR = Math.min(2, window.devicePixelRatio || 1);
-  const r = cvs.parentElement.getBoundingClientRect();
+  var r = cvs.parentElement.getBoundingClientRect();
   W = Math.max(1, Math.round(r.width));
   H = Math.max(1, Math.round(r.height));
   cvs.width = W * DPR; cvs.height = H * DPR;
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   buildStars();
 }
-window.addEventListener('resize', resize);
-
 function buildStars(){
   starCvs = document.createElement('canvas');
   starCvs.width = (W + 120) * DPR; starCvs.height = H * DPR;
-  const s = starCvs.getContext('2d');
+  var s = starCvs.getContext('2d');
   s.setTransform(DPR, 0, 0, DPR, 0, 0);
-  const rng = mulberry32(0x57A2);
-  const n = Math.floor((W + 120) * H / 2600);
-  for (let i = 0; i < n; i++){
-    const x = rng() * (W + 120), y = rng() * H * .72;
-    const rr = rng();
+  var rng = mulberry32(0x57A2);
+  var n = Math.floor((W + 120) * H / 2600);
+  for (var i = 0; i < n; i++){
+    var x = rng() * (W + 120), y = rng() * H * .72, rr = rng();
     s.fillStyle = rr > .9 ? 'rgba(246,223,164,.95)' : 'rgba(239,230,208,' + (0.25 + rng() * .5) + ')';
     s.beginPath(); s.arc(x, y, rr > .9 ? 1.4 : .7, 0, 7); s.fill();
   }
 }
+window.addEventListener('resize', function(){ resizeVista(); resizeGhost(); });
 
-/* world position -> scroll units */
 function worldOffsets(){
-  const latR = target.lat * Math.PI / 180;
-  const wx = target.lng * 111320 * Math.cos(latR);   // metres east
-  const wy = target.lat * 110540;                    // metres north
-  const b = target.bearing * Math.PI / 180;
-  const lateral =  wx * Math.cos(b) + wy * Math.sin(b);
-  const forward = -wx * Math.sin(b) + wy * Math.cos(b);
-  const zScale = Math.min(6, Math.max(.3, Math.pow(2, target.zoom - 15)));
-  return { lateral, forward, zScale };
+  var latR = target.lat * Math.PI / 180;
+  var wx = target.lng * 111320 * Math.cos(latR);
+  var wy = target.lat * 110540;
+  var b = target.bearing * Math.PI / 180;
+  return {
+    lateral:  wx * Math.cos(b) + wy * Math.sin(b),
+    forward: -wx * Math.sin(b) + wy * Math.cos(b),
+    zScale: Math.min(6, Math.max(.3, Math.pow(2, target.zoom - 15)))
+  };
 }
 
-function lerp(a, b, t){ return a + (b - a) * t; }
-
-/* ---------- structure sprites ---------- */
 function drawSpire(g, x, y, h, w, glow){
   g.beginPath();
   g.moveTo(x - w, y); g.lineTo(x, y - h); g.lineTo(x + w, y); g.closePath();
@@ -502,9 +537,9 @@ function drawTower(g, rng, x, y, h, w, litAmt){
   g.beginPath();
   g.moveTo(x - w / 2 - 2, y - h); g.lineTo(x, y - h - w * .9); g.lineTo(x + w / 2 + 2, y - h);
   g.closePath(); g.fill();
-  const rows = Math.max(1, Math.floor(h / 14));
+  var rows = Math.max(1, Math.floor(h / 14));
   g.save();
-  for (let r = 0; r < rows; r++){
+  for (var r = 0; r < rows; r++){
     if (rng() < litAmt){
       g.fillStyle = rng() < .3 ? 'rgba(217,96,58,.8)' : 'rgba(227,176,75,.8)';
       g.fillRect(x - w / 2 + 2 + rng() * (w - 6), y - h + 6 + r * 14, 2.5, 3.5);
@@ -530,12 +565,12 @@ function drawGiantTree(g, rng, x, y, h, w){
   g.fillStyle = 'rgba(20,14,34,.95)';
   g.fillRect(x - w * .12, y - h * .55, w * .24, h * .55);
   g.fillStyle = 'rgba(58,44,96,.92)';
-  for (let i = 0; i < 3; i++){
-    const cy = y - h * (.5 + i * .18), cr = w * (0.55 - i * .12);
+  for (var i = 0; i < 3; i++){
+    var cy = y - h * (.5 + i * .18), cr = w * (0.55 - i * .12);
     g.beginPath(); g.arc(x + (rng() - .5) * 4, cy, cr, 0, 7); g.fill();
   }
   g.fillStyle = 'rgba(227,176,75,.55)';
-  for (let i = 0; i < 5; i++){
+  for (var j = 0; j < 5; j++){
     g.beginPath();
     g.arc(x + (rng() - .5) * w, y - h * (.5 + rng() * .4), .9, 0, 7);
     g.fill();
@@ -557,33 +592,29 @@ function drawIsland(g, rng, x, y, s){
   g.restore();
 }
 
-/* one parallax terrain band */
 function drawBand(g, opts){
-  const { off, seed, baseY, amp, wl, color, cell, structures, time } = opts;
-  g.fillStyle = color;
+  g.fillStyle = opts.color;
   g.beginPath();
   g.moveTo(-4, H);
-  for (let x = -4; x <= W + 4; x += 6){
-    const wx = (x + off) / wl;
-    g.lineTo(x, baseY - fbm(wx, seed) * amp);
+  for (var x = -4; x <= W + 4; x += 6){
+    g.lineTo(x, opts.baseY - fbm((x + opts.off) / opts.wl, opts.seed) * opts.amp);
   }
   g.lineTo(W + 4, H);
   g.closePath();
   g.fill();
 
-  if (!structures) return;
-  const c0 = Math.floor((off - 60) / cell), c1 = Math.floor((off + W + 60) / cell);
-  for (let c = c0; c <= c1; c++){
-    const rng = mulberry32((c * 2654435761) ^ seed);
-    const jitter = rng() * cell * .6;
-    const sx = c * cell - off + jitter;
+  if (!opts.structures) return;
+  var c0 = Math.floor((opts.off - 60) / opts.cell), c1 = Math.floor((opts.off + W + 60) / opts.cell);
+  for (var c = c0; c <= c1; c++){
+    var rng = mulberry32((c * 2654435761) ^ opts.seed);
+    var sx = c * opts.cell - opts.off + rng() * opts.cell * .6;
     if (sx < -50 || sx > W + 50) continue;
-    const gy = baseY - fbm((sx + off) / wl, seed) * amp + 2;
-    const roll = rng();
-    const density = .12 + sceneCur.urban * .55;
-    const treeDensity = .08 + sceneCur.forest * .5;
+    var gy = opts.baseY - fbm((sx + opts.off) / opts.wl, opts.seed) * opts.amp + 2;
+    var roll = rng();
+    var density = .12 + sceneCur.urban * .55;
+    var treeDensity = .08 + sceneCur.forest * .5;
     if (roll < density){
-      const kind = rng();
+      var kind = rng();
       g.fillStyle = opts.structColor;
       if (kind < .38) drawSpire(g, sx, gy, 26 + rng() * 46 * (1 + sceneCur.urban), 5 + rng() * 5, rng());
       else if (kind < .72) drawTower(g, rng, sx, gy, 22 + rng() * 40 * (1 + sceneCur.urban * .8), 9 + rng() * 8, .25 + sceneCur.urban * .6);
@@ -594,8 +625,7 @@ function drawBand(g, opts){
   }
 }
 
-/* ember particles */
-const embers = [];
+var embers = [];
 function spawnEmber(){
   embers.push({
     x: Math.random() * W, y: H + 6,
@@ -605,28 +635,27 @@ function spawnEmber(){
   });
 }
 
-let t0 = performance.now();
+var t0 = performance.now();
 function frame(now){
-  const dt = Math.min(50, now - t0) / 1000; t0 = now;
-  const time = now / 1000;
+  var dt = Math.min(50, now - t0) / 1000; t0 = now;
+  var time = now / 1000;
 
-  /* smooth toward map state */
-  const wo = worldOffsets();
+  var wo = worldOffsets();
   cur.lateral = lerp(cur.lateral, wo.lateral, .10);
   cur.forward = lerp(cur.forward, wo.forward, .10);
   cur.zScale  = lerp(cur.zScale,  wo.zScale,  .06);
   cur.bearing = lerp(cur.bearing, target.bearing, .12);
-  for (const k in scene) sceneCur[k] = lerp(sceneCur[k], scene[k], .05);
+  for (var k in scene) sceneCur[k] = lerp(sceneCur[k], scene[k], .05);
 
   windVX = lerp(windVX, (cur.lateral - lastLateral) * -0.6, .2);
   lastLateral = cur.lateral;
 
-  const horizon = H * .60;
-  const px = 0.06 * cur.zScale;                 /* px per metre feel */
-  const drift = reduceMotion ? 0 : time;
+  var horizon = H * .60;
+  var px = 0.06 * cur.zScale;
+  var drift = reduceMotion ? 0 : time;
 
   /* SKY */
-  const sky = ctx.createLinearGradient(0, 0, 0, horizon * 1.25);
+  var sky = ctx.createLinearGradient(0, 0, 0, horizon * 1.25);
   sky.addColorStop(0, '#0a0710');
   sky.addColorStop(.45, '#181231');
   sky.addColorStop(.8, '#31204a');
@@ -634,30 +663,28 @@ function frame(now){
   ctx.fillStyle = sky;
   ctx.fillRect(0, 0, W, H);
 
-  /* stars: shift with bearing so rotating the map turns the heavens */
   if (starCvs){
-    const shift = ((cur.bearing * 1.6) % 120 + 120) % 120;
+    var shift = ((cur.bearing * 1.6) % 120 + 120) % 120;
     ctx.globalAlpha = .9;
-    ctx.drawImage(starCvs, -shift * DPR, 0, (W + 120) * DPR, H * DPR, 0, 0, W + 120, H);
+    ctx.drawImage(starCvs, shift * DPR, 0, W * DPR, H * DPR, 0, 0, W, H);
     ctx.globalAlpha = 1;
   }
 
-  /* aurora ribbons — co-prime periods 7.3 / 11.7 s */
   if (!reduceMotion){
     ctx.save();
     ctx.globalCompositeOperation = 'screen';
-    for (let a = 0; a < 2; a++){
-      const period = a === 0 ? 7.3 : 11.7;
-      const yBase = horizon * (.22 + a * .14);
-      const grad = ctx.createLinearGradient(0, yBase - 30, 0, yBase + 30);
-      grad.addColorStop(0, 'rgba(107,79,163,0)');
-      grad.addColorStop(.5, a === 0 ? 'rgba(107,79,163,.16)' : 'rgba(142,163,199,.10)');
-      grad.addColorStop(1, 'rgba(107,79,163,0)');
-      ctx.fillStyle = grad;
+    for (var a = 0; a < 2; a++){
+      var period = a === 0 ? 7.3 : 11.7;
+      var yBase = horizon * (.22 + a * .14);
+      var agrad = ctx.createLinearGradient(0, yBase - 30, 0, yBase + 30);
+      agrad.addColorStop(0, 'rgba(107,79,163,0)');
+      agrad.addColorStop(.5, a === 0 ? 'rgba(107,79,163,.16)' : 'rgba(142,163,199,.10)');
+      agrad.addColorStop(1, 'rgba(107,79,163,0)');
+      ctx.fillStyle = agrad;
       ctx.beginPath();
       ctx.moveTo(0, yBase);
-      for (let x = 0; x <= W; x += 12){
-        ctx.lineTo(x, yBase + Math.sin(x * .012 + drift * (6.28 / period) + a * 2) * 16);
+      for (var ax = 0; ax <= W; ax += 12){
+        ctx.lineTo(ax, yBase + Math.sin(ax * .012 + drift * (6.28 / period) + a * 2) * 16);
       }
       ctx.lineTo(W, yBase + 34); ctx.lineTo(0, yBase + 34);
       ctx.closePath(); ctx.fill();
@@ -665,10 +692,10 @@ function frame(now){
     ctx.restore();
   }
 
-  /* twin moons — parallax with bearing */
-  const moonShift = cur.bearing * .5;
+  /* twin moons */
+  var moonShift = cur.bearing * .5;
   ctx.save();
-  let mg = ctx.createRadialGradient(W * .74 - moonShift, horizon * .28, 2, W * .74 - moonShift, horizon * .28, 46);
+  var mg = ctx.createRadialGradient(W * .74 - moonShift, horizon * .28, 2, W * .74 - moonShift, horizon * .28, 46);
   mg.addColorStop(0, 'rgba(246,223,164,.95)');
   mg.addColorStop(.35, 'rgba(227,176,75,.5)');
   mg.addColorStop(1, 'rgba(227,176,75,0)');
@@ -683,83 +710,81 @@ function frame(now){
   ctx.beginPath(); ctx.arc(W * .2 - moonShift * 1.4, horizon * .16, 6, 0, 7); ctx.fill();
   ctx.restore();
 
-  /* FAR mountains */
+  /* far mountains */
   drawBand(ctx, {
     off: cur.lateral * px * .10 + cur.forward * px * .03,
     seed: 0xA11CE, baseY: horizon, amp: horizon * .42, wl: 150,
     color: '#150f28', cell: 130, structures: false
   });
 
-  /* floating islands drift with mid parallax */
-  {
-    const off = cur.lateral * px * .22 + cur.forward * px * .06;
-    const cell = 260;
-    const c0 = Math.floor((off - 100) / cell), c1 = Math.floor((off + W + 100) / cell);
-    for (let c = c0; c <= c1; c++){
-      const rng = mulberry32((c * 40503) ^ 0xF10A7);
-      if (rng() < .34){
-        const sx = c * cell - off + rng() * cell * .7;
-        const sy = horizon * (.24 + rng() * .3);
-        drawIsland(ctx, rng, sx, sy, 20 + rng() * 26);
-      }
+  /* floating islands */
+  var ioff = cur.lateral * px * .22 + cur.forward * px * .06;
+  var icell = 260;
+  var ic0 = Math.floor((ioff - 100) / icell), ic1 = Math.floor((ioff + W + 100) / icell);
+  for (var ic = ic0; ic <= ic1; ic++){
+    var irng = mulberry32((ic * 40503) ^ 0xF10A7);
+    if (irng() < .34){
+      var isx = ic * icell - ioff + irng() * icell * .7;
+      var isy = horizon * (.24 + irng() * .3);
+      drawIsland(ctx, irng, isx, isy, 20 + irng() * 26);
     }
   }
 
-  /* MID ridge with citadels */
+  /* mid ridge with citadels */
   drawBand(ctx, {
     off: cur.lateral * px * .32 + cur.forward * px * .10,
     seed: 0xB227, baseY: horizon + H * .05, amp: horizon * .3, wl: 95,
     color: '#1d1735', structColor: 'rgba(24,18,44,.96)',
-    cell: 92, structures: true, time
+    cell: 92, structures: true
   });
 
-  /* mist sea — swells with real water nearby */
+  /* mist sea */
   if (sceneCur.water > .02){
-    const my = horizon + H * .02;
-    const grad = ctx.createLinearGradient(0, my - 26, 0, my + 44);
-    grad.addColorStop(0, 'rgba(142,163,199,0)');
-    grad.addColorStop(.5, 'rgba(142,163,199,' + (0.34 * sceneCur.water) + ')');
-    grad.addColorStop(1, 'rgba(142,163,199,0)');
-    ctx.fillStyle = grad;
+    var my = horizon + H * .02;
+    var wgrad = ctx.createLinearGradient(0, my - 26, 0, my + 44);
+    wgrad.addColorStop(0, 'rgba(142,163,199,0)');
+    wgrad.addColorStop(.5, 'rgba(142,163,199,' + (0.34 * sceneCur.water) + ')');
+    wgrad.addColorStop(1, 'rgba(142,163,199,0)');
+    ctx.fillStyle = wgrad;
     ctx.fillRect(0, my - 26, W, 74);
   }
 
-  /* NEAR hills, trees, keeps */
+  /* near hills */
   drawBand(ctx, {
     off: cur.lateral * px * .7 + cur.forward * px * .22,
     seed: 0xC33D, baseY: H * .82, amp: H * .17, wl: 70,
     color: '#241b3f', structColor: 'rgba(16,11,30,.98)',
-    cell: 78, structures: true, time
+    cell: 78, structures: true
   });
 
-  /* leyline road — appears where mortal roads run */
+  /* leyline road */
   if (sceneCur.road > .05){
-    const off = cur.lateral * px * .7;
-    const a = Math.min(.9, sceneCur.road);
+    var loff = cur.lateral * px * .7;
+    var la = Math.min(.9, sceneCur.road);
     ctx.save();
     ctx.globalCompositeOperation = 'screen';
     ctx.lineCap = 'round';
-    const bendSeed = 0xD00D;
-    const topX = W / 2 + (fbm(off / 400, bendSeed) - .5) * W * .5;
-    const midX = W / 2 + (fbm(off / 190 + 3.7, bendSeed) - .5) * W * .8;
-    for (let pass = 0; pass < 2; pass++){
+    var bendSeed = 0xD00D;
+    var startX = W / 2 + (fbm(loff / 90, bendSeed) - .5) * 60;
+    var topX = W / 2 + (fbm(loff / 400, bendSeed) - .5) * W * .5;
+    var midX = W / 2 + (fbm(loff / 190 + 3.7, bendSeed) - .5) * W * .8;
+    for (var pass = 0; pass < 2; pass++){
       ctx.strokeStyle = pass === 0
-        ? 'rgba(227,176,75,' + (a * .16) + ')'
-        : 'rgba(246,223,164,' + (a * .6) + ')';
+        ? 'rgba(227,176,75,' + (la * .16) + ')'
+        : 'rgba(246,223,164,' + (la * .6) + ')';
       ctx.lineWidth = pass === 0 ? 26 : 3;
       ctx.beginPath();
-      ctx.moveTo(W / 2 + (fbm(off / 90, bendSeed) - .5) * 60, H + 8);
+      ctx.moveTo(startX, H + 8);
       ctx.quadraticCurveTo(midX, H * .86, topX, horizon + H * .055);
       ctx.stroke();
     }
-    /* pulses travel toward the horizon as the wayfarer moves */
     if (!reduceMotion){
-      const flow = ((cur.forward * px * .12 + time * 24) % 60 + 60) % 60;
-      ctx.fillStyle = 'rgba(246,223,164,' + (a * .8) + ')';
-      for (let d = flow; d < 100; d += 30){
-        const tt = d / 100;
-        const xx = (1 - tt) * (1 - tt) * (W / 2) + 2 * (1 - tt) * tt * midX + tt * tt * topX;
-        const yy = (1 - tt) * (1 - tt) * (H + 8) + 2 * (1 - tt) * tt * (H * .86) + tt * tt * (horizon + H * .055);
+      var flow = ((cur.forward * px * .12 + time * 24) % 60 + 60) % 60;
+      ctx.fillStyle = 'rgba(246,223,164,' + (la * .8) + ')';
+      for (var d = flow; d < 100; d += 30){
+        var tt = d / 100;
+        var xx = (1 - tt) * (1 - tt) * startX + 2 * (1 - tt) * tt * midX + tt * tt * topX;
+        var yy = (1 - tt) * (1 - tt) * (H + 8) + 2 * (1 - tt) * tt * (H * .86) + tt * tt * (horizon + H * .055);
         ctx.beginPath(); ctx.arc(xx, yy, 2.4 * (1 - tt * .6), 0, 7); ctx.fill();
       }
     }
@@ -771,13 +796,13 @@ function frame(now){
     if (embers.length < 42 && Math.random() < .5) spawnEmber();
     ctx.save();
     ctx.globalCompositeOperation = 'screen';
-    for (let i = embers.length - 1; i >= 0; i--){
-      const e = embers[i];
+    for (var ei = embers.length - 1; ei >= 0; ei--){
+      var e = embers[ei];
       e.vx = lerp(e.vx, windVX * .02, .1);
-      e.x += e.vx + Math.sin(time * 2 + i) * .15;
+      e.x += e.vx + Math.sin(time * 2 + ei) * .15;
       e.y += e.vy * 60 * dt;
       e.life -= dt * .22;
-      if (e.life <= 0 || e.y < -8){ embers.splice(i, 1); continue; }
+      if (e.life <= 0 || e.y < -8){ embers.splice(ei, 1); continue; }
       ctx.fillStyle = e.hot
         ? 'rgba(217,96,58,' + (e.life * .8) + ')'
         : 'rgba(227,176,75,' + (e.life * .7) + ')';
@@ -786,22 +811,304 @@ function frame(now){
     ctx.restore();
   }
 
-  /* atmosphere + vignette */
-  const fog = ctx.createLinearGradient(0, horizon - 40, 0, H);
+  /* atmosphere */
+  var fog = ctx.createLinearGradient(0, horizon - 40, 0, H);
   fog.addColorStop(0, 'rgba(49,32,74,0)');
   fog.addColorStop(1, 'rgba(10,7,16,.55)');
   ctx.fillStyle = fog; ctx.fillRect(0, horizon - 40, W, H - horizon + 40);
-  const vig = ctx.createRadialGradient(W / 2, H * .5, H * .35, W / 2, H * .5, H * .95);
+  var vig = ctx.createRadialGradient(W / 2, H * .5, H * .35, W / 2, H * .5, H * .95);
   vig.addColorStop(0, 'rgba(10,7,16,0)');
   vig.addColorStop(1, 'rgba(10,7,16,.5)');
   ctx.fillStyle = vig; ctx.fillRect(0, 0, W, H);
 
+  if (ghostActive) drawGhost(time);
   requestAnimationFrame(frame);
 }
 
-resize();
+resizeVista();
 updateHUD();
 requestAnimationFrame(frame);
+logDiag('vista running', 'ok');
+
+/* ============================================================
+   3. GEOLOCATION (independent of map availability)
+   ============================================================ */
+if (navigator.geolocation){
+  navigator.geolocation.getCurrentPosition(
+    function(pos){
+      userPos.lng = pos.coords.longitude;
+      userPos.lat = pos.coords.latitude;
+      logDiag('geolocation ok: ' + fmtCoord(userPos.lat, userPos.lng), 'ok');
+      if (map){
+        if (userMarker) userMarker.setLngLat([userPos.lng, userPos.lat]);
+        map.jumpTo({ center:[userPos.lng, userPos.lat] });
+      } else {
+        target.lng = userPos.lng; target.lat = userPos.lat;
+        updateHUD();
+      }
+      showGeoNote('Your position is bound to the realm');
+    },
+    function(err){
+      logDiag('geolocation denied/failed: ' + err.message + ' (code ' + err.code + ')', 'err');
+      showGeoNote('Location veiled — showing a distant shore');
+    },
+    { enableHighAccuracy:true, timeout:8000 }
+  );
+} else {
+  logDiag('navigator.geolocation unavailable', 'err');
+  showGeoNote('Location veiled — showing a distant shore');
+}
+
+document.getElementById('recenterBtn').addEventListener('click', function(){
+  if (map){
+    map.flyTo({ center:[userPos.lng, userPos.lat], zoom:15.4, bearing:0, speed:1.4 });
+  } else {
+    target.lng = userPos.lng; target.lat = userPos.lat;
+    target.bearing = 0; target.zoom = 15.4;
+    updateHUD();
+  }
+});
+
+/* ============================================================
+   4. MAPLIBRE — async load, multi-CDN fallback, try/catch init
+   ============================================================ */
+var MAPLIBRE_JS = [
+  'https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.min.js',
+  'https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.min.js',
+  'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js'
+];
+var MAPLIBRE_CSS = [
+  'https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.min.css',
+  'https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.min.css',
+  'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css'
+];
+
+function loadScriptChain(urls, i){
+  i = i || 0;
+  return new Promise(function(resolve, reject){
+    if (i >= urls.length){ reject(new Error('all script CDNs failed')); return; }
+    var s = document.createElement('script');
+    s.src = urls[i];
+    s.onload = function(){ logDiag('js loaded: ' + urls[i].split('/')[2], 'ok'); resolve(); };
+    s.onerror = function(){
+      logDiag('js failed: ' + urls[i], 'err');
+      loadScriptChain(urls, i + 1).then(resolve, reject);
+    };
+    document.head.appendChild(s);
+  });
+}
+function loadCssChain(urls, i){
+  i = i || 0;
+  if (i >= urls.length){ logDiag('all css CDNs failed (non-fatal)', 'err'); return; }
+  var l = document.createElement('link');
+  l.rel = 'stylesheet';
+  l.href = urls[i];
+  l.onload = function(){ logDiag('css loaded: ' + urls[i].split('/')[2], 'ok'); };
+  l.onerror = function(){ loadCssChain(urls, i + 1); };
+  document.head.appendChild(l);
+}
+
+var featureDirty = false, lastSample = 0;
+function sampleFeatures(){
+  if (!map || !map.isStyleLoaded()) return;
+  var water = 0, forest = 0, urban = 0, road = 0;
+  try{
+    var feats = map.queryRenderedFeatures();
+    for (var i = 0; i < feats.length; i++){
+      var f = feats[i];
+      var id = ((f.layer && f.layer.id) || '').toLowerCase();
+      var sl = (f.sourceLayer || '').toLowerCase();
+      if (id.indexOf('water') >= 0 || sl === 'water') water++;
+      else if (id.indexOf('wood') >= 0 || id.indexOf('forest') >= 0 || id.indexOf('grass') >= 0 || id.indexOf('park') >= 0 || sl === 'park') forest++;
+      else if (id.indexOf('building') >= 0 || sl === 'building') urban++;
+      else if (id.indexOf('transportation') >= 0 || id.indexOf('highway') >= 0 || id.indexOf('road') >= 0 || sl.indexOf('transportation') >= 0) road++;
+    }
+  }catch(e){ return; }
+  scene.water  = Math.min(1, water  / 6);
+  scene.forest = Math.min(1, forest / 14);
+  scene.urban  = Math.min(1, urban  / 45);
+  scene.road   = Math.min(1, road   / 30);
+}
+setInterval(function(){
+  var now = performance.now();
+  if (featureDirty && now - lastSample > 480){
+    featureDirty = false; lastSample = now;
+    sampleFeatures();
+  }
+}, 240);
+
+function initMap(){
+  loadCssChain(MAPLIBRE_CSS);
+  loadScriptChain(MAPLIBRE_JS).then(function(){
+    if (typeof maplibregl === 'undefined') throw new Error('maplibregl undefined after script load');
+    logDiag('maplibre-gl v' + maplibregl.version);
+
+    map = new maplibregl.Map({
+      container:'map',
+      style:'https://tiles.openfreemap.org/styles/liberty',
+      center:[target.lng, target.lat],
+      zoom:target.zoom,
+      pitch:0,
+      attributionControl:{ compact:true },
+      dragRotate:true,
+      touchPitch:false
+    });
+
+    map.on('error', function(e){
+      logDiag('map error: ' + ((e.error && e.error.message) || 'unknown'), 'err');
+    });
+
+    var markerEl = document.createElement('div');
+    markerEl.className = 'rune-marker';
+    markerEl.innerHTML = '<div class="ring"></div><div class="ring"></div><div class="core"></div>';
+    userMarker = new maplibregl.Marker({ element:markerEl })
+      .setLngLat([userPos.lng, userPos.lat]).addTo(map);
+
+    map.on('move', function(){
+      var c = map.getCenter();
+      target.lng = c.lng; target.lat = c.lat;
+      target.bearing = map.getBearing();
+      target.zoom = map.getZoom();
+      updateHUD();
+      featureDirty = true;
+    });
+
+    map.on('load', function(){
+      mapReady = true;
+      logDiag('map style loaded', 'ok');
+      sampleFeatures();
+      var toast = document.getElementById('hintToast');
+      toast.classList.add('show');
+      setTimeout(function(){ toast.classList.remove('show'); }, 4200);
+    });
+  }).catch(function(err){
+    logDiag('map init failed: ' + err.message, 'err');
+    enableGhostMap();
+  });
+}
+try{ initMap(); }catch(e){ logDiag('map init threw: ' + e.message, 'err'); enableGhostMap(); }
+
+/* ============================================================
+   5. GHOST MAP — touch-drag fallback if MapLibre never loads
+   ============================================================ */
+var ghostActive = false;
+var gcvs = document.getElementById('ghostMap');
+var gctx = gcvs.getContext('2d');
+var GW = 0, GH = 0;
+
+function resizeGhost(){
+  var r = gcvs.parentElement.getBoundingClientRect();
+  GW = Math.max(1, Math.round(r.width));
+  GH = Math.max(1, Math.round(r.height));
+  gcvs.width = GW * DPR; gcvs.height = GH * DPR;
+  gctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+}
+
+function enableGhostMap(){
+  if (ghostActive) return;
+  ghostActive = true;
+  gcvs.style.display = 'block';
+  document.getElementById('map').style.display = 'none';
+  document.getElementById('mapLabel').textContent = 'Ghost Cartography \u00B7 offline';
+  resizeGhost();
+  showGeoNote('Cartography unreachable — drag here to wander the realm', 5200);
+
+  var wrap = document.getElementById('mapWrap');
+  var pointers = {};
+  var pinchDist = 0;
+
+  function metersPerPx(){
+    return 156543 * Math.cos(target.lat * Math.PI / 180) / Math.pow(2, target.zoom + 8) * 256;
+  }
+  wrap.addEventListener('pointerdown', function(ev){
+    if (ev.target.closest('.recenter') || ev.target.closest('.diag-btn') || ev.target.closest('.diag-panel')) return;
+    pointers[ev.pointerId] = { x:ev.clientX, y:ev.clientY };
+    wrap.setPointerCapture(ev.pointerId);
+  });
+  wrap.addEventListener('pointermove', function(ev){
+    if (!pointers[ev.pointerId]) return;
+    var ids = Object.keys(pointers);
+    if (ids.length === 1){
+      var p = pointers[ev.pointerId];
+      var dx = ev.clientX - p.x, dy = ev.clientY - p.y;
+      var mpp = metersPerPx();
+      var b = target.bearing * Math.PI / 180;
+      var east  = (-dx * Math.cos(b) + dy * Math.sin(b)) * mpp;
+      var north = ( dy * Math.cos(b) + dx * Math.sin(b)) * mpp;
+      target.lng += east  / (111320 * Math.cos(target.lat * Math.PI / 180));
+      target.lat += north / 110540;
+      target.lat = Math.max(-85, Math.min(85, target.lat));
+      updateHUD();
+    } else if (ids.length === 2){
+      var a = pointers[ids[0]], b2 = pointers[ids[1]];
+      if (String(ev.pointerId) === ids[0]) a = { x:ev.clientX, y:ev.clientY };
+      else b2 = { x:ev.clientX, y:ev.clientY };
+      var d = Math.hypot(a.x - b2.x, a.y - b2.y);
+      if (pinchDist > 0){
+        target.zoom = Math.max(11, Math.min(18, target.zoom + (d - pinchDist) * .01));
+        updateHUD();
+      }
+      pinchDist = d;
+    }
+    pointers[ev.pointerId] = { x:ev.clientX, y:ev.clientY };
+  });
+  function endPointer(ev){
+    delete pointers[ev.pointerId];
+    if (Object.keys(pointers).length < 2) pinchDist = 0;
+  }
+  wrap.addEventListener('pointerup', endPointer);
+  wrap.addEventListener('pointercancel', endPointer);
+}
+
+function drawGhost(time){
+  gctx.fillStyle = '#131022';
+  gctx.fillRect(0, 0, GW, GH);
+  var mpp = 156543 * Math.cos(target.lat * Math.PI / 180) / Math.pow(2, target.zoom + 8) * 256;
+  var gridM = 100;
+  var gridPx = gridM / mpp;
+  while (gridPx < 34){ gridM *= 2; gridPx = gridM / mpp; }
+  while (gridPx > 110){ gridM /= 2; gridPx = gridM / mpp; }
+  var wxm = target.lng * 111320 * Math.cos(target.lat * Math.PI / 180);
+  var wym = target.lat * 110540;
+  var offX = (wxm / gridM % 1 + 1) % 1 * gridPx;
+  var offY = (wym / gridM % 1 + 1) % 1 * gridPx;
+
+  gctx.strokeStyle = 'rgba(227,176,75,.12)';
+  gctx.lineWidth = 1;
+  for (var gx = -offX; gx <= GW; gx += gridPx){
+    gctx.beginPath(); gctx.moveTo(gx, 0); gctx.lineTo(gx, GH); gctx.stroke();
+  }
+  for (var gy = GH + offY; gy >= 0; gy -= gridPx){
+    gctx.beginPath(); gctx.moveTo(0, gy); gctx.lineTo(GW, gy); gctx.stroke();
+  }
+
+  /* seeded district sigils so the ghost map has landmarks to steer by */
+  var cellM = gridM * 3;
+  var cellPx = cellM / mpp;
+  var c0x = Math.floor((wxm - GW / 2 * mpp) / cellM), c1x = Math.floor((wxm + GW / 2 * mpp) / cellM);
+  var c0y = Math.floor((wym - GH / 2 * mpp) / cellM), c1y = Math.floor((wym + GH / 2 * mpp) / cellM);
+  for (var cx = c0x; cx <= c1x; cx++){
+    for (var cy = c0y; cy <= c1y; cy++){
+      var rng = mulberry32((cx * 73856093) ^ (cy * 19349663) ^ 0x6057);
+      if (rng() > .4) continue;
+      var sxp = GW / 2 + ((cx + .5) * cellM - wxm) / mpp;
+      var syp = GH / 2 - ((cy + .5) * cellM - wym) / mpp;
+      var rr = 6 + rng() * Math.min(26, cellPx * .2);
+      gctx.strokeStyle = 'rgba(107,79,163,.4)';
+      gctx.beginPath(); gctx.arc(sxp, syp, rr, 0, 7); gctx.stroke();
+      gctx.fillStyle = 'rgba(227,176,75,.5)';
+      gctx.beginPath(); gctx.arc(sxp, syp, 1.6, 0, 7); gctx.fill();
+    }
+  }
+
+  /* wayfarer at centre */
+  var pulse = reduceMotion ? .5 : (Math.sin(time * 2.4) * .5 + .5);
+  gctx.strokeStyle = 'rgba(227,176,75,' + (0.5 + pulse * .4) + ')';
+  gctx.lineWidth = 1.5;
+  gctx.beginPath(); gctx.arc(GW / 2, GH / 2, 9 + pulse * 5, 0, 7); gctx.stroke();
+  gctx.fillStyle = '#f6dfa4';
+  gctx.beginPath(); gctx.arc(GW / 2, GH / 2, 3.4, 0, 7); gctx.fill();
+}
 </script>
 </body>
 </html>
