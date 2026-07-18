@@ -1,786 +1,807 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>RPG World Builder — Photo Edition</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#0a0710" />
+<title>Veilwalker — The Realm Above</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+
+<link href="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/3.6.2/maplibre-gl.min.css" rel="stylesheet" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/3.6.2/maplibre-gl.min.js"></script>
+
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    background: #fafafa;
-    color: #1a1a1a;
-    height: 100vh;
-    overflow: hidden;
+  :root{
+    --void:#0a0710;
+    --deep:#131022;
+    --midnight:#1d1735;
+    --gold:#e3b04b;
+    --ember:#d9603a;
+    --arcane:#6b4fa3;
+    --mist:#8ea3c7;
+    --parchment:#efe6d0;
   }
-  .rpg-app { display: flex; flex-direction: column; height: 100vh; }
-  .rpg-tabs { display: flex; gap: 4px; border-bottom: 1px solid #e0e0e0; padding: 0 16px; background: #fff; }
-  .rpg-tab { padding: 12px 20px; cursor: pointer; border-bottom: 2px solid transparent; color: #666; font-size: 14px; font-weight: 500; background: none; border-top: none; border-left: none; border-right: none; transition: color 0.15s, border-color 0.15s; }
-  .rpg-tab:hover { color: #1a1a1a; }
-  .rpg-tab.active { color: #1a1a1a; border-bottom-color: #1a1a1a; }
-  .rpg-panel { flex: 1; overflow: auto; padding: 16px; }
-  .rpg-hidden { display: none !important; }
+  *{ margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{ height:100%; overflow:hidden; background:var(--void); }
+  body{
+    font-family:'Inter',system-ui,sans-serif;
+    color:var(--parchment);
+    height:100dvh;
+    display:grid;
+    grid-template-rows:1fr 1fr;
+    position:relative;
+  }
 
-  /* Landscape */
-  .landscape-wrap { display: flex; gap: 16px; height: 100%; }
-  .landscape-sidebar { width: 210px; flex-shrink: 0; display: flex; flex-direction: column; gap: 12px; }
-  .landscape-main { flex: 1; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
-  .tile-palette { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
-  .tile-btn { width: 100%; aspect-ratio: 1; border: 2px solid #e0e0e0; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; position: relative; transition: border-color 0.15s; background: #fff; }
-  .tile-btn:hover { border-color: #999; }
-  .tile-btn.selected { border-color: #1a1a1a; box-shadow: 0 0 0 1px #1a1a1a; }
-  .tile-btn .tlabel { position: absolute; bottom: 3px; font-size: 10px; color: #999; }
-  .tool-row { display: flex; gap: 6px; }
-  .tool-btn { flex: 1; padding: 8px; border: 1px solid #e0e0e0; border-radius: 8px; background: #fff; cursor: pointer; font-size: 12px; color: #666; transition: all 0.15s; }
-  .tool-btn:hover { background: #f5f5f5; }
-  .tool-btn.active { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
-  .map-grid { display: grid; gap: 1px; background: #e0e0e0; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden; flex: 1; }
-  .map-cell { background: #fff; cursor: pointer; position: relative; transition: filter 0.15s; }
-  .map-cell:hover { filter: brightness(0.92); }
-  .map-cell .tile-icon { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
-  .map-settings { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; background: #fff; padding: 10px 14px; border-radius: 10px; border: 1px solid #e0e0e0; }
-  .map-settings input, .map-settings select { padding: 6px 10px; border: 1px solid #e0e0e0; border-radius: 8px; font-size: 13px; background: #fff; color: #1a1a1a; }
-  .map-settings label { font-size: 12px; color: #666; font-weight: 500; }
+  /* ---------- TOP: the Realm vista ---------- */
+  #vistaWrap{ position:relative; overflow:hidden; background:var(--void); }
+  #vista{ position:absolute; inset:0; width:100%; height:100%; display:block; }
 
-  /* Photo import */
-  .photo-import { border: 2px dashed #ccc; border-radius: 10px; padding: 12px; text-align: center; cursor: pointer; transition: border-color 0.15s, background 0.15s; background: #fff; }
-  .photo-import:hover { border-color: #1a1a1a; background: #f9f9f9; }
-  .photo-import.dragover { border-color: #1a1a1a; background: #f0f0f0; }
-  .photo-import-text { font-size: 12px; color: #666; }
-  .photo-import input[type="file"] { display: none; }
-  .photo-preview { width: 100%; border-radius: 6px; margin-top: 8px; display: none; }
-  .photo-preview.show { display: block; }
-  .import-options { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+  .hud{ position:absolute; z-index:5; pointer-events:none; }
 
-  /* Characters */
-  .char-wrap { display: flex; gap: 16px; height: 100%; }
-  .char-list { width: 220px; flex-shrink: 0; display: flex; flex-direction: column; gap: 8px; }
-  .char-list-items { flex: 1; overflow: auto; display: flex; flex-direction: column; gap: 4px; }
-  .char-row { padding: 10px 12px; border-radius: 8px; border: 1px solid #e0e0e0; cursor: pointer; display: flex; align-items: center; justify-content: space-between; background: #fff; transition: background 0.15s; }
-  .char-row:hover { background: #f5f5f5; }
-  .char-row.active { border-color: #1a1a1a; background: #f5f5f5; }
-  .char-row-name { font-size: 13px; font-weight: 500; color: #1a1a1a; }
-  .char-row-meta { font-size: 11px; color: #999; }
-  .char-row-actions { opacity: 0; transition: opacity 0.15s; }
-  .char-row:hover .char-row-actions { opacity: 1; }
-  .char-editor { flex: 1; display: flex; gap: 16px; min-width: 0; }
-  .char-form { flex: 1; display: flex; flex-direction: column; gap: 12px; overflow: auto; }
-  .char-preview { width: 180px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 8px; }
-  .field { display: flex; flex-direction: column; gap: 4px; }
-  .field label { font-size: 12px; color: #666; font-weight: 500; }
-  .field input, .field select { padding: 8px 10px; border: 1px solid #e0e0e0; border-radius: 8px; font-size: 13px; background: #fff; color: #1a1a1a; }
-  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-  .stat-box { padding: 10px; border: 1px solid #e0e0e0; border-radius: 8px; text-align: center; background: #fff; }
-  .stat-box label { font-size: 11px; color: #999; display: block; margin-bottom: 2px; }
-  .stat-box input { width: 100%; text-align: center; border: none; background: transparent; font-size: 20px; font-weight: 500; color: #1a1a1a; padding: 0; }
-  .color-row { display: flex; gap: 12px; align-items: center; }
-  .color-row input[type="color"] { width: 36px; height: 36px; border: 1px solid #e0e0e0; border-radius: 6px; padding: 2px; background: #fff; cursor: pointer; }
-  .char-photo-area { width: 100%; border: 2px dashed #ccc; border-radius: 10px; padding: 16px; text-align: center; cursor: pointer; transition: all 0.15s; background: #fff; margin-bottom: 8px; }
-  .char-photo-area:hover { border-color: #1a1a1a; background: #f9f9f9; }
-  .char-photo-area img { max-width: 100%; border-radius: 8px; margin-top: 8px; }
-  .char-photo-hint { font-size: 11px; color: #999; margin-top: 4px; }
+  .realm-chip{
+    top:calc(env(safe-area-inset-top, 0px) + 12px); left:14px;
+    display:flex; flex-direction:column; gap:1px;
+    padding:8px 14px 9px;
+    background:linear-gradient(160deg, rgba(19,16,34,.82), rgba(10,7,16,.65));
+    border:1px solid rgba(227,176,75,.35);
+    border-radius:3px;
+    backdrop-filter:blur(6px);
+    -webkit-backdrop-filter:blur(6px);
+    box-shadow:0 4px 18px rgba(0,0,0,.5), inset 0 0 12px rgba(227,176,75,.06);
+  }
+  .realm-chip .eyebrow{
+    font-size:9px; letter-spacing:.22em; text-transform:uppercase;
+    color:var(--mist); font-weight:500;
+  }
+  .realm-chip .name{
+    font-family:'Cormorant Garamond',serif;
+    font-size:21px; font-weight:600; line-height:1.1;
+    color:var(--gold);
+    text-shadow:0 0 14px rgba(227,176,75,.35);
+    transition:opacity .5s ease;
+  }
+  .realm-chip .name.fading{ opacity:0; }
 
-  /* Export */
-  .export-wrap { display: flex; flex-direction: column; gap: 12px; height: 100%; }
-  .export-actions { display: flex; gap: 8px; }
-  .export-btn { padding: 8px 16px; border-radius: 8px; border: 1px solid #e0e0e0; background: #fff; color: #1a1a1a; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: background 0.15s; font-weight: 500; }
-  .export-btn:hover { background: #f5f5f5; }
-  .export-btn.primary { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
-  .export-btn.primary:hover { opacity: 0.9; }
-  .export-code { flex: 1; background: #f5f5f5; border: 1px solid #e0e0e0; border-radius: 10px; padding: 14px; font-family: "SF Mono", Monaco, "Cascadia Code", monospace; font-size: 12px; line-height: 1.6; overflow: auto; white-space: pre-wrap; word-break: break-all; color: #1a1a1a; }
+  .compass{
+    top:calc(env(safe-area-inset-top, 0px) + 12px); right:14px;
+    width:52px; height:52px;
+  }
+  .compass svg{ width:100%; height:100%; overflow:visible; }
+  #compassRose{ transform-origin:50% 50%; transition:transform .12s linear; }
 
-  .svg-tile { width: 70%; height: 70%; }
+  .coord-bar{
+    left:50%; bottom:26px; transform:translateX(-50%);
+    display:flex; align-items:center; gap:10px;
+    padding:6px 16px;
+    background:rgba(10,7,16,.6);
+    border:1px solid rgba(227,176,75,.25);
+    border-radius:2px;
+    backdrop-filter:blur(4px);
+    -webkit-backdrop-filter:blur(4px);
+    font-size:10.5px; letter-spacing:.14em; font-weight:500;
+    color:var(--parchment); white-space:nowrap;
+  }
+  .coord-bar .rune{ color:var(--gold); font-size:9px; }
 
-  /* Toast */
-  .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(20px); background: #1a1a1a; color: #fff; padding: 10px 20px; border-radius: 8px; font-size: 13px; opacity: 0; pointer-events: none; transition: opacity 0.2s, transform 0.2s; z-index: 100; }
-  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .hint-toast{
+    left:50%; top:50%; transform:translate(-50%,-50%);
+    padding:10px 20px;
+    font-family:'Cormorant Garamond',serif; font-style:italic;
+    font-size:16px; color:var(--parchment);
+    background:rgba(10,7,16,.55);
+    border:1px solid rgba(227,176,75,.3);
+    border-radius:2px;
+    backdrop-filter:blur(5px);
+    -webkit-backdrop-filter:blur(5px);
+    opacity:0; transition:opacity 1s ease;
+    text-align:center; max-width:78%;
+  }
+  .hint-toast.show{ opacity:1; }
 
-  /* Modal */
-  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: none; align-items: center; justify-content: center; z-index: 200; }
-  .modal-overlay.show { display: flex; }
-  .modal { background: #fff; border-radius: 12px; padding: 20px; max-width: 500px; width: 90%; max-height: 80vh; overflow: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.15); }
-  .modal h3 { font-size: 16px; margin-bottom: 12px; }
-  .modal p { font-size: 13px; color: #666; margin-bottom: 12px; }
-  .modal-canvas { width: 100%; border-radius: 8px; border: 1px solid #e0e0e0; }
-  .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; }
+  /* ---------- DIVIDER: the Threshold ---------- */
+  .threshold{
+    position:absolute; left:0; right:0; top:50%;
+    height:0; z-index:20; pointer-events:none;
+  }
+  .threshold .bar{
+    position:absolute; left:0; right:0; top:-2px; height:4px;
+    background:linear-gradient(90deg,
+      transparent, rgba(227,176,75,.15) 12%,
+      var(--gold) 46%, #f6dfa4 50%, var(--gold) 54%,
+      rgba(227,176,75,.15) 88%, transparent);
+    box-shadow:0 0 16px rgba(227,176,75,.5), 0 0 46px rgba(217,96,58,.25);
+  }
+  .threshold .gem{
+    position:absolute; left:50%; top:0; transform:translate(-50%,-50%) rotate(45deg);
+    width:16px; height:16px;
+    background:linear-gradient(135deg, #f6dfa4, var(--gold) 55%, var(--ember));
+    border:1px solid rgba(246,223,164,.9);
+    box-shadow:0 0 18px rgba(227,176,75,.85), 0 0 44px rgba(217,96,58,.5);
+    animation:gemPulse 4.7s ease-in-out infinite;
+  }
+  @keyframes gemPulse{
+    0%,100%{ box-shadow:0 0 14px rgba(227,176,75,.7), 0 0 34px rgba(217,96,58,.35); }
+    50%{ box-shadow:0 0 26px rgba(227,176,75,1), 0 0 64px rgba(217,96,58,.6); }
+  }
 
-  ::-webkit-scrollbar { width: 6px; height: 6px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
-  ::-webkit-scrollbar-thumb:hover { background: #999; }
+  /* ---------- BOTTOM: the mortal map ---------- */
+  #mapWrap{ position:relative; overflow:hidden; background:var(--deep); }
+  #map{ position:absolute; inset:0; }
+  /* alchemical dark transmutation of the base cartography */
+  #map .maplibregl-canvas{
+    filter:invert(.92) hue-rotate(205deg) saturate(.55) brightness(.82) contrast(1.08);
+  }
+  .map-tint{
+    position:absolute; inset:0; pointer-events:none; z-index:2;
+    background:
+      radial-gradient(120% 90% at 50% 0%, rgba(227,176,75,.10), transparent 55%),
+      radial-gradient(140% 110% at 50% 115%, rgba(107,79,163,.18), transparent 60%);
+    mix-blend-mode:screen;
+  }
+  .map-vignette{
+    position:absolute; inset:0; pointer-events:none; z-index:2;
+    box-shadow:inset 0 0 90px rgba(10,7,16,.9);
+  }
 
-  @media (max-width: 900px) {
-    .landscape-wrap, .char-wrap { flex-direction: column; }
-    .landscape-sidebar, .char-list { width: 100%; }
-    .char-editor { flex-direction: column; }
-    .char-preview { width: 100%; }
+  .maplibregl-ctrl-attrib{
+    background:rgba(10,7,16,.55)!important;
+    font-size:9px!important;
+  }
+  .maplibregl-ctrl-attrib a{ color:var(--mist)!important; }
+
+  .recenter{
+    position:absolute; right:14px;
+    bottom:calc(env(safe-area-inset-bottom, 0px) + 22px);
+    z-index:6;
+    width:46px; height:46px;
+    display:flex; align-items:center; justify-content:center;
+    background:linear-gradient(160deg, rgba(29,23,53,.92), rgba(10,7,16,.88));
+    border:1px solid rgba(227,176,75,.5);
+    border-radius:50%;
+    color:var(--gold);
+    box-shadow:0 4px 16px rgba(0,0,0,.6), inset 0 0 10px rgba(227,176,75,.08);
+    cursor:pointer;
+  }
+  .recenter:active{ transform:scale(.93); }
+  .recenter svg{ width:20px; height:20px; }
+
+  .map-label{
+    position:absolute; left:14px;
+    bottom:calc(env(safe-area-inset-bottom, 0px) + 24px);
+    z-index:6; pointer-events:none;
+    font-size:9px; letter-spacing:.24em; text-transform:uppercase;
+    color:var(--mist); font-weight:500;
+    display:flex; align-items:center; gap:8px;
+  }
+  .map-label::before{
+    content:""; width:22px; height:1px;
+    background:linear-gradient(90deg, var(--gold), transparent);
+  }
+
+  /* user rune marker */
+  .rune-marker{ width:26px; height:26px; position:relative; }
+  .rune-marker .core{
+    position:absolute; inset:7px;
+    background:radial-gradient(circle, #f6dfa4 0%, var(--gold) 55%, var(--ember) 100%);
+    border-radius:50%;
+    box-shadow:0 0 12px rgba(227,176,75,.9);
+  }
+  .rune-marker .ring{
+    position:absolute; inset:0; border:1.5px solid var(--gold);
+    border-radius:50%;
+    animation:runePulse 2.6s ease-out infinite;
+  }
+  .rune-marker .ring:nth-child(2){ animation-delay:1.3s; }
+  @keyframes runePulse{
+    0%{ transform:scale(.5); opacity:1; }
+    100%{ transform:scale(2.4); opacity:0; }
+  }
+
+  .geo-note{
+    position:absolute; left:50%; top:14px; transform:translateX(-50%);
+    z-index:6; padding:6px 14px;
+    font-size:10px; letter-spacing:.08em; color:var(--mist);
+    background:rgba(10,7,16,.7);
+    border:1px solid rgba(142,163,199,.3);
+    border-radius:2px;
+    opacity:0; transition:opacity .6s ease;
+    pointer-events:none; white-space:nowrap;
+  }
+  .geo-note.show{ opacity:1; }
+
+  @media (prefers-reduced-motion: reduce){
+    .threshold .gem{ animation:none; }
+    .rune-marker .ring{ animation:none; opacity:.4; transform:scale(1.4); }
   }
 </style>
 </head>
 <body>
 
-<div class="rpg-app">
-  <div class="rpg-tabs">
-    <button class="rpg-tab active" data-tab="landscapes">Landscapes</button>
-    <button class="rpg-tab" data-tab="characters">Characters</button>
-    <button class="rpg-tab" data-tab="export">Export</button>
-  </div>
+  <!-- TOP HALF — the Realm -->
+  <section id="vistaWrap" aria-label="Fantasy realm view">
+    <canvas id="vista"></canvas>
 
-  <!-- LANDSCAPES -->
-  <div class="rpg-panel" id="panel-landscapes">
-    <div class="landscape-wrap">
-      <div class="landscape-sidebar">
-        <div style="font-size:12px;color:#666;font-weight:500;">Tiles</div>
-        <div class="tile-palette" id="tilePalette"></div>
-        <div style="font-size:12px;color:#666;font-weight:500;margin-top:4px;">Tools</div>
-        <div class="tool-row">
-          <button class="tool-btn active" data-tool="brush">Brush</button>
-          <button class="tool-btn" data-tool="eraser">Eraser</button>
-          <button class="tool-btn" data-tool="fill">Fill</button>
-        </div>
-        <div style="font-size:12px;color:#666;font-weight:500;margin-top:4px;">Photo Import</div>
-        <div class="photo-import" id="landscapePhotoDrop">
-          <div class="photo-import-text">Drop photo here<br>or click to upload</div>
-          <input type="file" id="landscapePhotoInput" accept="image/*">
-          <img class="photo-preview" id="landscapePhotoPreview" alt="preview">
-          <div class="import-options" id="landscapeImportOpts" style="display:none;">
-            <button class="export-btn" onclick="convertPhotoToMap()">Convert to map</button>
-            <button class="export-btn" onclick="clearLandscapePhoto()">Clear</button>
-          </div>
-        </div>
-        <div style="font-size:12px;color:#666;font-weight:500;margin-top:4px;">Actions</div>
-        <button class="export-btn" style="width:100%;justify-content:center;" onclick="clearMap()">Clear map</button>
-        <button class="export-btn" style="width:100%;justify-content:center;" onclick="resizeMapPrompt()">Resize</button>
-      </div>
-      <div class="landscape-main">
-        <div class="map-settings">
-          <label>Map name</label>
-          <input type="text" id="mapName" value="Forest Realm" style="width:140px;">
-          <label>Width</label>
-          <input type="number" id="mapW" value="12" min="4" max="32" style="width:60px;">
-          <label>Height</label>
-          <input type="number" id="mapH" value="10" min="4" max="32" style="width:60px;">
-          <button class="export-btn" onclick="applyMapSize()">Apply size</button>
-        </div>
-        <div class="map-grid" id="mapGrid"></div>
-      </div>
+    <div class="hud realm-chip">
+      <span class="eyebrow">Realm sighted</span>
+      <span class="name" id="realmName">The Veiled Reach</span>
     </div>
-  </div>
 
-  <!-- CHARACTERS -->
-  <div class="rpg-panel rpg-hidden" id="panel-characters">
-    <div class="char-wrap">
-      <div class="char-list">
-        <button class="export-btn primary" style="width:100%;justify-content:center;" onclick="addCharacter()">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12.0684 2.03418C12.5654 2.03421 12.9687 2.43755 12.9688 2.93457V11.0996H21.0654C21.5625 11.0996 21.9658 11.503 21.9658 12C21.9658 12.497 21.5625 12.9004 21.0654 12.9004H12.9688V21.0654C12.9687 21.5624 12.5654 21.9658 12.0684 21.9658C11.5713 21.9658 11.168 21.5625 11.168 21.0654V12.9004H2.93457C2.43751 12.9004 2.03418 12.4971 2.03418 12C2.03418 11.5029 2.43751 11.0996 2.93457 11.0996H11.168V2.93457C11.168 2.43753 11.5713 2.03418 12.0684 2.03418Z" fill="currentColor"/></svg>
-          New character
-        </button>
-        <div class="char-list-items" id="charList"></div>
-      </div>
-      <div class="char-editor" id="charEditor">
-        <div class="char-form" id="charForm"></div>
-        <div class="char-preview">
-          <div style="font-size:12px;color:#666;font-weight:500;">Preview</div>
-          <svg id="charSvg" width="160" height="200" viewBox="0 0 140 180" style="border:1px solid #e0e0e0;border-radius:10px;background:#f5f5f5;"></svg>
-          <div class="char-photo-area" id="charPhotoDrop">
-            <div style="font-size:12px;color:#666;">Drop character photo<br>or click to upload</div>
-            <input type="file" id="charPhotoInput" accept="image/*" style="display:none;">
-            <img id="charPhotoImg" style="max-width:100%;border-radius:8px;display:none;" alt="character photo">
-            <div class="char-photo-hint" id="charPhotoHint">Photo will auto-extract colors</div>
-            <div class="import-options" id="charPhotoOpts" style="display:none;">
-              <button class="export-btn" onclick="extractCharColors()">Extract colors</button>
-              <button class="export-btn" onclick="clearCharPhoto()">Clear</button>
-            </div>
-          </div>
-        </div>
-      </div>
+    <div class="hud compass" aria-hidden="true">
+      <svg viewBox="0 0 52 52">
+        <circle cx="26" cy="26" r="24" fill="rgba(10,7,16,.6)" stroke="rgba(227,176,75,.4)" stroke-width="1"/>
+        <g id="compassRose">
+          <path d="M26 6 L29 24 L26 22 L23 24 Z" fill="#e3b04b"/>
+          <path d="M26 46 L29 28 L26 30 L23 28 Z" fill="rgba(142,163,199,.6)"/>
+          <circle cx="26" cy="26" r="2.4" fill="#f6dfa4"/>
+        </g>
+        <text x="26" y="4" text-anchor="middle" font-size="7" fill="#e3b04b" font-family="Inter">N</text>
+      </svg>
     </div>
-  </div>
 
-  <!-- EXPORT -->
-  <div class="rpg-panel rpg-hidden" id="panel-export">
-    <div class="export-wrap">
-      <div class="export-actions">
-        <button class="export-btn primary" onclick="copyExport()">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M7.5 3.09961H14.5605C15.5539 3.09968 16.51 3.47933 17.2334 4.16016L19.6729 6.45605C20.4558 7.19299 20.9003 8.22067 20.9004 9.2959V17C20.9004 19.1539 19.1539 20.9004 17 20.9004H7C4.84609 20.9004 3.09961 19.1539 3.09961 17V7C3.09961 4.84609 4.84609 3.09961 7 3.09961Z" stroke="currentColor" stroke-width="1.8" fill="none"/><path d="M8 12H16M8 15H14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-          Copy JSON
-        </button>
-        <button class="export-btn" onclick="downloadExport()">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M12 2.90002C12.4971 2.90002 12.9 3.30297 12.9 3.80002V12.2939L15.8081 9.38585C16.1595 9.03438 16.7294 9.03438 17.0808 9.38585C17.4323 9.73732 17.4323 10.3072 17.0808 10.6586L12.6364 15.1031C12.4676 15.2719 12.2387 15.3667 12 15.3667C11.7613 15.3667 11.5324 15.2719 11.3636 15.1031L6.91917 10.6586C6.5677 10.3072 6.5677 9.73732 6.91917 9.38585C7.27064 9.03438 7.84049 9.03438 8.19196 9.38585L11.1 12.2939V3.80002C11.1 3.30297 11.503 2.90002 12 2.90002ZM4.00001 13.5874C4.49706 13.5874 4.90001 13.9903 4.90001 14.4874V18.043C4.90001 18.2758 4.99249 18.499 5.1571 18.6636C5.32172 18.8282 5.54498 18.9207 5.77778 18.9207H18.2222C18.455 18.9207 18.6783 18.8283 18.8429 18.6636C19.0075 18.499 19.1 18.2758 19.1 18.043V14.4874C19.1 13.9903 19.5029 13.5874 20 13.5874C20.4971 13.5874 20.9 13.9903 20.9 14.4874V18.043C20.9 18.7531 20.6179 19.4342 20.1157 19.9364C19.6135 20.4386 18.9324 20.7207 18.2222 20.7207H5.77778C5.06759 20.7207 4.38649 20.4386 3.88431 19.9364C3.38213 19.4342 3.10001 18.7531 3.10001 18.043V14.4874C3.10001 13.9903 3.50295 13.5874 4.00001 13.5874Z" fill="currentColor"/></svg>
-          Download .json
-        </button>
-      </div>
-      <pre class="export-code" id="exportCode"></pre>
+    <div class="hud coord-bar">
+      <span class="rune">◆</span>
+      <span id="coordText">— · —</span>
+      <span class="rune">◆</span>
     </div>
+
+    <div class="hud hint-toast" id="hintToast">
+      Drag the map below — the realm above follows your path
+    </div>
+  </section>
+
+  <!-- THE THRESHOLD -->
+  <div class="threshold" aria-hidden="true">
+    <div class="bar"></div>
+    <div class="gem"></div>
   </div>
 
-  <div class="toast" id="toast"></div>
-</div>
-
-<!-- Hidden canvases for image processing -->
-<canvas id="processCanvas" style="display:none;"></canvas>
+  <!-- BOTTOM HALF — the mortal map -->
+  <section id="mapWrap" aria-label="Interactive map">
+    <div id="map"></div>
+    <div class="map-tint"></div>
+    <div class="map-vignette"></div>
+    <div class="map-label">Mortal Cartography</div>
+    <div class="geo-note" id="geoNote"></div>
+    <button class="recenter" id="recenterBtn" aria-label="Return to my location">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+        <circle cx="12" cy="12" r="7"/>
+        <circle cx="12" cy="12" r="2.2" fill="currentColor" stroke="none"/>
+        <path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
+      </svg>
+    </button>
+  </section>
 
 <script>
-// ===================== STATE =====================
-const TILES = {
-  empty:   { name: 'Empty',     color: '#f5f5f5', svg: '' },
-  grass:   { name: 'Grass',     color: '#7cb342', svg: '<rect x="3" y="3" width="18" height="18" rx="3" fill="#7cb342"/><circle cx="8" cy="8" r="2" fill="#9ccc65"/><circle cx="16" cy="14" r="2.5" fill="#9ccc65"/>' },
-  water:   { name: 'Water',     color: '#42a5f5', svg: '<rect x="2" y="2" width="20" height="20" rx="4" fill="#42a5f5"/><path d="M6 14q4 2 8 0t8 0" stroke="#90caf9" stroke-width="1.5" fill="none"/>' },
-  sand:    { name: 'Sand',      color: '#ffca28', svg: '<rect x="2" y="2" width="20" height="20" rx="3" fill="#ffca28"/><circle cx="7" cy="7" r="1.2" fill="#ffe082"/><circle cx="17" cy="16" r="1.5" fill="#ffe082"/>' },
-  forest:  { name: 'Forest',    color: '#2e7d32', svg: '<rect x="2" y="2" width="20" height="20" rx="3" fill="#66bb6a"/><path d="M12 5l-4 8h8z" fill="#2e7d32"/><rect x="11" y="13" width="2" height="5" fill="#5d4037"/>' },
-  mountain:{ name:'Mountain',   color: '#78909c', svg: '<rect x="2" y="2" width="20" height="20" rx="3" fill="#b0bec5"/><path d="M12 4l-5 14h10z" fill="#78909c"/><path d="M12 7l-2 5h4z" fill="#cfd8dc"/>' },
-  path:    { name: 'Path',      color: '#d7ccc8', svg: '<rect x="2" y="2" width="20" height="20" rx="3" fill="#d7ccc8"/><rect x="8" y="2" width="8" height="20" fill="#bcaaa4"/>' },
-  wall:    { name: 'Wall',      color: '#424242', svg: '<rect x="2" y="2" width="20" height="20" rx="2" fill="#616161"/><rect x="4" y="4" width="7" height="7" fill="#757575"/><rect x="13" y="4" width="7" height="7" fill="#757575"/><rect x="4" y="13" width="7" height="7" fill="#757575"/><rect x="13" y="13" width="7" height="7" fill="#757575"/>' },
-  door:    { name: 'Door',      color: '#8d6e63', svg: '<rect x="2" y="2" width="20" height="20" rx="3" fill="#a1887f"/><rect x="7" y="5" width="10" height="14" rx="1" fill="#5d4037"/><circle cx="14" cy="12" r="1" fill="#ffca28"/>' },
-  chest:   { name: 'Chest',     color: '#ffa000', svg: '<rect x="4" y="6" width="16" height="12" rx="2" fill="#ffa000"/><rect x="4" y="6" width="16" height="6" fill="#ffca28"/><rect x="10" y="10" width="4" height="3" rx="1" fill="#5d4037"/>' },
-  spawn:   { name: 'Spawn',     color: '#ef5350', svg: '<rect x="2" y="2" width="20" height="20" rx="10" fill="#ef5350"/><circle cx="12" cy="12" r="4" fill="#ffcdd2"/>' },
-};
+/* =====================================================================
+   VEILWALKER — split-screen mockup
+   Bottom: live MapLibre map (OpenFreeMap vector tiles, dark transmuted)
+   Top: procedural fantasy vista, seeded from world position and steered
+        by real map features (water, forest, buildings, roads).
+   Design canon: void #0a0710 · gold #e3b04b · ember #d9603a
+   ===================================================================== */
 
-let state = {
-  activeTab: 'landscapes',
-  map: { name: 'Forest Realm', width: 12, height: 10, tiles: [] },
-  selectedTile: 'grass',
-  tool: 'brush',
-  characters: [],
-  activeCharId: null,
-  landscapePhoto: null,
-  charPhoto: null,
-};
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-const CLASSES = ['Warrior','Mage','Rogue','Cleric','Ranger','Paladin'];
-
-// ===================== INIT =====================
-function init() {
-  try {
-    const saved = localStorage.getItem('rpgBuilderState');
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      // Don't restore photos (too big for localStorage)
-      state = { ...parsed, landscapePhoto: null, charPhoto: null };
-    }
-  } catch(e){}
-  ensureMapSize();
-  buildPalette();
-  renderMap();
-  renderCharList();
-  if (state.characters.length === 0) addCharacter();
-  else selectCharacter(state.characters[0].id);
-  updateExport();
-  setupPhotoDrops();
-
-  document.querySelectorAll('.rpg-tab').forEach(tab => {
-    tab.addEventListener('click', () => switchTab(tab.dataset.tab));
-  });
-  document.querySelectorAll('.tool-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      state.tool = btn.dataset.tool;
-      document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-    });
-  });
-  document.getElementById('mapName').addEventListener('input', e => {
-    state.map.name = e.target.value;
-    saveState();
-  });
-}
-
-function saveState() {
-  const saveData = { ...state, landscapePhoto: null, charPhoto: null };
-  try { localStorage.setItem('rpgBuilderState', JSON.stringify(saveData)); } catch(e){}
-  updateExport();
-}
-
-// ===================== PHOTO DROP SETUP =====================
-function setupPhotoDrops() {
-  // Landscape
-  const lDrop = document.getElementById('landscapePhotoDrop');
-  const lInput = document.getElementById('landscapePhotoInput');
-  lDrop.addEventListener('click', () => lInput.click());
-  lDrop.addEventListener('dragover', e => { e.preventDefault(); lDrop.classList.add('dragover'); });
-  lDrop.addEventListener('dragleave', () => lDrop.classList.remove('dragover'));
-  lDrop.addEventListener('drop', e => {
-    e.preventDefault(); lDrop.classList.remove('dragover');
-    if (e.dataTransfer.files[0]) handleLandscapePhoto(e.dataTransfer.files[0]);
-  });
-  lInput.addEventListener('change', e => { if (e.target.files[0]) handleLandscapePhoto(e.target.files[0]); });
-
-  // Character
-  const cDrop = document.getElementById('charPhotoDrop');
-  const cInput = document.getElementById('charPhotoInput');
-  cDrop.addEventListener('click', () => cInput.click());
-  cDrop.addEventListener('dragover', e => { e.preventDefault(); cDrop.style.borderColor = '#1a1a1a'; });
-  cDrop.addEventListener('dragleave', () => cDrop.style.borderColor = '#ccc'; });
-  cDrop.addEventListener('drop', e => {
-    e.preventDefault(); cDrop.style.borderColor = '#ccc';
-    if (e.dataTransfer.files[0]) handleCharPhoto(e.dataTransfer.files[0]);
-  });
-  cInput.addEventListener('change', e => { if (e.target.files[0]) handleCharPhoto(e.target.files[0]); });
-}
-
-// ===================== LANDSCAPE PHOTO =====================
-function handleLandscapePhoto(file) {
-  const reader = new FileReader();
-  reader.onload = e => {
-    state.landscapePhoto = e.target.result;
-    const img = document.getElementById('landscapePhotoPreview');
-    img.src = state.landscapePhoto;
-    img.classList.add('show');
-    document.getElementById('landscapeImportOpts').style.display = 'flex';
-    showToast('Photo loaded. Click "Convert to map".');
+/* ---------- seeded PRNG (mulberry32) + value noise ---------- */
+function mulberry32(a){
+  return function(){
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
   };
-  reader.readAsDataURL(file);
+}
+function hash1(i, seed){
+  return mulberry32((i * 2654435761) ^ seed)();
+}
+function smooth(t){ return t * t * (3 - 2 * t); }
+function vnoise(x, seed){
+  const i = Math.floor(x), f = x - i;
+  return hash1(i, seed) * (1 - smooth(f)) + hash1(i + 1, seed) * smooth(f);
+}
+function fbm(x, seed){
+  return vnoise(x, seed) * .55 + vnoise(x * 2.13, seed ^ 0x9e37) * .28 + vnoise(x * 4.7, seed ^ 0x51f2) * .17;
 }
 
-function clearLandscapePhoto() {
-  state.landscapePhoto = null;
-  document.getElementById('landscapePhotoPreview').classList.remove('show');
-  document.getElementById('landscapeImportOpts').style.display = 'none';
-  document.getElementById('landscapePhotoInput').value = '';
+/* ---------- realm naming ---------- */
+const SYL_A = ['Vor','Ael','Thar','Nym','Kor','Mal','Ish','Dra','Vel','Umb','Cael','Ryn','Orr','Zar','Eth','Syl'];
+const SYL_B = ['athel','mar','\u2019dun','ath','oreth','wyn','gard','vaal','iel','myr','\u2019kesh','anor'];
+const REALM_KIND = ['Reach of','Vale of','Dominion of','Marches of','Hollow of','Crown of'];
+function realmNameFor(cellX, cellY){
+  const r = mulberry32((cellX * 73856093) ^ (cellY * 19349663) ^ 0xDA7A);
+  const kind = REALM_KIND[Math.floor(r() * REALM_KIND.length)];
+  return kind + ' ' + SYL_A[Math.floor(r() * SYL_A.length)] + SYL_B[Math.floor(r() * SYL_B.length)];
 }
 
-function convertPhotoToMap() {
-  if (!state.landscapePhoto) return;
-  const img = new Image();
-  img.onload = () => {
-    const canvas = document.getElementById('processCanvas');
-    const ctx = canvas.getContext('2d');
-    canvas.width = state.map.width;
-    canvas.height = state.map.height;
-    ctx.drawImage(img, 0, 0, state.map.width, state.map.height);
-    const data = ctx.getImageData(0, 0, state.map.width, state.map.height).data;
+/* ---------- shared state ---------- */
+const FALLBACK = { lng:-71.0589, lat:42.3601 }; // Boston
+const target = { lng:FALLBACK.lng, lat:FALLBACK.lat, bearing:0, zoom:15.4 };
+const cur = { lateral:0, forward:0, bearing:0, zScale:1 };
+const scene = { water:0, forest:0, urban:.4, road:.4 };       // sampled targets
+const sceneCur = { water:0, forest:0, urban:.4, road:.4 };    // lerped for render
+let windVX = 0, lastLateral = 0;
+let realmCell = null;
 
-    const tileKeys = Object.keys(TILES).filter(k => k !== 'empty');
-    const tileColors = tileKeys.map(k => ({ key: k, rgb: hexToRgb(TILES[k].color) }));
+/* ---------- MAP (bottom half) ---------- */
+const map = new maplibregl.Map({
+  container:'map',
+  style:'https://tiles.openfreemap.org/styles/liberty',
+  center:[FALLBACK.lng, FALLBACK.lat],
+  zoom:15.4,
+  pitch:0,
+  attributionControl:{ compact:true },
+  dragRotate:true,
+  touchPitch:false
+});
 
-    for (let y = 0; y < state.map.height; y++) {
-      for (let x = 0; x < state.map.width; x++) {
-        const i = (y * state.map.width + x) * 4;
-        const r = data[i], g = data[i+1], b = data[i+2];
-        let best = 'empty', bestDist = Infinity;
-        for (const tc of tileColors) {
-          const d = Math.sqrt((r-tc.rgb.r)**2 + (g-tc.rgb.g)**2 + (b-tc.rgb.b)**2);
-          if (d < bestDist) { bestDist = d; best = tc.key; }
-        }
-        // If very dark, maybe wall; if very light, maybe empty
-        if (r < 40 && g < 40 && b < 40) best = 'wall';
-        if (r > 230 && g > 230 && b > 230) best = 'empty';
-        state.map.tiles[y * state.map.width + x] = best;
+const markerEl = document.createElement('div');
+markerEl.className = 'rune-marker';
+markerEl.innerHTML = '<div class="ring"></div><div class="ring"></div><div class="core"></div>';
+const userMarker = new maplibregl.Marker({ element:markerEl }).setLngLat([FALLBACK.lng, FALLBACK.lat]).addTo(map);
+
+function showGeoNote(msg, ms){
+  const n = document.getElementById('geoNote');
+  n.textContent = msg;
+  n.classList.add('show');
+  setTimeout(()=> n.classList.remove('show'), ms || 3200);
+}
+
+if (navigator.geolocation){
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      const { longitude:lng, latitude:lat } = pos.coords;
+      userMarker.setLngLat([lng, lat]);
+      map.jumpTo({ center:[lng, lat] });
+      showGeoNote('Your position is bound to the realm');
+    },
+    ()  => showGeoNote('Location veiled — showing a distant shore'),
+    { enableHighAccuracy:true, timeout:8000 }
+  );
+} else {
+  showGeoNote('Location veiled — showing a distant shore');
+}
+
+document.getElementById('recenterBtn').addEventListener('click', () => {
+  const ll = userMarker.getLngLat();
+  map.flyTo({ center:ll, zoom:15.4, bearing:0, speed:1.4 });
+});
+
+/* map movement -> vista state */
+function syncFromMap(){
+  const c = map.getCenter();
+  target.lng = c.lng; target.lat = c.lat;
+  target.bearing = map.getBearing();
+  target.zoom = map.getZoom();
+  updateHUD();
+  featureDirty = true;
+}
+map.on('move', syncFromMap);
+map.on('load', () => {
+  syncFromMap();
+  sampleFeatures();
+  const toast = document.getElementById('hintToast');
+  toast.classList.add('show');
+  setTimeout(()=> toast.classList.remove('show'), 4200);
+});
+
+/* ---------- feature sampling: the land shapes the realm ---------- */
+let featureDirty = false, lastSample = 0;
+function sampleFeatures(){
+  if (!map.isStyleLoaded()) return;
+  let water = 0, forest = 0, urban = 0, road = 0;
+  try{
+    const feats = map.queryRenderedFeatures();
+    for (const f of feats){
+      const id = ((f.layer && f.layer.id) || '').toLowerCase();
+      const sl  = (f.sourceLayer || '').toLowerCase();
+      if (id.includes('water') || sl === 'water') water++;
+      else if (id.includes('wood') || id.includes('forest') || id.includes('grass') || id.includes('park') || sl === 'park') forest++;
+      else if (id.includes('building') || sl === 'building') urban++;
+      else if (id.includes('transportation') || id.includes('highway') || id.includes('road') || sl.includes('transportation')) road++;
+    }
+  }catch(e){ /* style mid-load; keep previous scene */ }
+  scene.water  = Math.min(1, water  / 6);
+  scene.forest = Math.min(1, forest / 14);
+  scene.urban  = Math.min(1, urban  / 45);
+  scene.road   = Math.min(1, road   / 30);
+}
+setInterval(() => {
+  const now = performance.now();
+  if (featureDirty && now - lastSample > 480){
+    featureDirty = false; lastSample = now;
+    sampleFeatures();
+  }
+}, 240);
+
+/* ---------- HUD ---------- */
+function fmtCoord(lat, lng){
+  const ns = lat >= 0 ? 'N' : 'S', ew = lng >= 0 ? 'E' : 'W';
+  return Math.abs(lat).toFixed(4) + '\u00B0 ' + ns + '  \u00B7  ' + Math.abs(lng).toFixed(4) + '\u00B0 ' + ew;
+}
+const realmNameEl = document.getElementById('realmName');
+function updateHUD(){
+  document.getElementById('coordText').textContent = fmtCoord(target.lat, target.lng);
+  document.getElementById('compassRose').style.transform = 'rotate(' + (-target.bearing) + 'deg)';
+  const cx = Math.floor(target.lng * 50), cy = Math.floor(target.lat * 50); // ~2 km realm cells
+  const key = cx + ',' + cy;
+  if (key !== realmCell){
+    realmCell = key;
+    realmNameEl.classList.add('fading');
+    setTimeout(() => {
+      realmNameEl.textContent = realmNameFor(cx, cy);
+      realmNameEl.classList.remove('fading');
+    }, 260);
+  }
+}
+
+/* =====================================================================
+   THE VISTA — procedural fantasy street view (top half)
+   ===================================================================== */
+const cvs = document.getElementById('vista');
+const ctx = cvs.getContext('2d');
+let W = 0, H = 0, DPR = 1;
+let starCvs = null;
+
+function resize(){
+  DPR = Math.min(2, window.devicePixelRatio || 1);
+  const r = cvs.parentElement.getBoundingClientRect();
+  W = Math.max(1, Math.round(r.width));
+  H = Math.max(1, Math.round(r.height));
+  cvs.width = W * DPR; cvs.height = H * DPR;
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  buildStars();
+}
+window.addEventListener('resize', resize);
+
+function buildStars(){
+  starCvs = document.createElement('canvas');
+  starCvs.width = (W + 120) * DPR; starCvs.height = H * DPR;
+  const s = starCvs.getContext('2d');
+  s.setTransform(DPR, 0, 0, DPR, 0, 0);
+  const rng = mulberry32(0x57A2);
+  const n = Math.floor((W + 120) * H / 2600);
+  for (let i = 0; i < n; i++){
+    const x = rng() * (W + 120), y = rng() * H * .72;
+    const rr = rng();
+    s.fillStyle = rr > .9 ? 'rgba(246,223,164,.95)' : 'rgba(239,230,208,' + (0.25 + rng() * .5) + ')';
+    s.beginPath(); s.arc(x, y, rr > .9 ? 1.4 : .7, 0, 7); s.fill();
+  }
+}
+
+/* world position -> scroll units */
+function worldOffsets(){
+  const latR = target.lat * Math.PI / 180;
+  const wx = target.lng * 111320 * Math.cos(latR);   // metres east
+  const wy = target.lat * 110540;                    // metres north
+  const b = target.bearing * Math.PI / 180;
+  const lateral =  wx * Math.cos(b) + wy * Math.sin(b);
+  const forward = -wx * Math.sin(b) + wy * Math.cos(b);
+  const zScale = Math.min(6, Math.max(.3, Math.pow(2, target.zoom - 15)));
+  return { lateral, forward, zScale };
+}
+
+function lerp(a, b, t){ return a + (b - a) * t; }
+
+/* ---------- structure sprites ---------- */
+function drawSpire(g, x, y, h, w, glow){
+  g.beginPath();
+  g.moveTo(x - w, y); g.lineTo(x, y - h); g.lineTo(x + w, y); g.closePath();
+  g.fill();
+  if (glow > 0){
+    g.save();
+    g.fillStyle = 'rgba(227,176,75,' + (0.55 * glow) + ')';
+    g.beginPath(); g.arc(x, y - h, 2.2, 0, 7); g.fill();
+    g.restore();
+  }
+}
+function drawTower(g, rng, x, y, h, w, litAmt){
+  g.fillRect(x - w / 2, y - h, w, h);
+  g.beginPath();
+  g.moveTo(x - w / 2 - 2, y - h); g.lineTo(x, y - h - w * .9); g.lineTo(x + w / 2 + 2, y - h);
+  g.closePath(); g.fill();
+  const rows = Math.max(1, Math.floor(h / 14));
+  g.save();
+  for (let r = 0; r < rows; r++){
+    if (rng() < litAmt){
+      g.fillStyle = rng() < .3 ? 'rgba(217,96,58,.8)' : 'rgba(227,176,75,.8)';
+      g.fillRect(x - w / 2 + 2 + rng() * (w - 6), y - h + 6 + r * 14, 2.5, 3.5);
+    }
+  }
+  g.restore();
+}
+function drawCrystal(g, x, y, h, w){
+  g.save();
+  g.fillStyle = 'rgba(107,79,163,.85)';
+  g.beginPath();
+  g.moveTo(x, y - h); g.lineTo(x + w * .6, y - h * .45);
+  g.lineTo(x + w * .3, y); g.lineTo(x - w * .3, y);
+  g.lineTo(x - w * .6, y - h * .45); g.closePath();
+  g.fill();
+  g.strokeStyle = 'rgba(227,176,75,.4)'; g.lineWidth = .8; g.stroke();
+  g.fillStyle = 'rgba(246,223,164,.5)';
+  g.beginPath(); g.arc(x, y - h, 1.8, 0, 7); g.fill();
+  g.restore();
+}
+function drawGiantTree(g, rng, x, y, h, w){
+  g.save();
+  g.fillStyle = 'rgba(20,14,34,.95)';
+  g.fillRect(x - w * .12, y - h * .55, w * .24, h * .55);
+  g.fillStyle = 'rgba(58,44,96,.92)';
+  for (let i = 0; i < 3; i++){
+    const cy = y - h * (.5 + i * .18), cr = w * (0.55 - i * .12);
+    g.beginPath(); g.arc(x + (rng() - .5) * 4, cy, cr, 0, 7); g.fill();
+  }
+  g.fillStyle = 'rgba(227,176,75,.55)';
+  for (let i = 0; i < 5; i++){
+    g.beginPath();
+    g.arc(x + (rng() - .5) * w, y - h * (.5 + rng() * .4), .9, 0, 7);
+    g.fill();
+  }
+  g.restore();
+}
+function drawIsland(g, rng, x, y, s){
+  g.save();
+  g.fillStyle = 'rgba(29,23,53,.9)';
+  g.beginPath(); g.ellipse(x, y, s, s * .32, 0, 0, 7); g.fill();
+  g.beginPath();
+  g.moveTo(x - s * .7, y + s * .1); g.lineTo(x - s * .2, y + s * 1.1);
+  g.lineTo(x + s * .35, y + s * .15); g.closePath(); g.fill();
+  g.fillStyle = 'rgba(36,27,63,.95)';
+  drawSpire(g, x - s * .2, y - s * .05, s * .8, s * .16, 1);
+  if (rng() < .6) drawSpire(g, x + s * .35, y - s * .02, s * .5, s * .1, 1);
+  g.strokeStyle = 'rgba(227,176,75,.28)'; g.lineWidth = .8;
+  g.beginPath(); g.ellipse(x, y, s, s * .32, 0, Math.PI, 0); g.stroke();
+  g.restore();
+}
+
+/* one parallax terrain band */
+function drawBand(g, opts){
+  const { off, seed, baseY, amp, wl, color, cell, structures, time } = opts;
+  g.fillStyle = color;
+  g.beginPath();
+  g.moveTo(-4, H);
+  for (let x = -4; x <= W + 4; x += 6){
+    const wx = (x + off) / wl;
+    g.lineTo(x, baseY - fbm(wx, seed) * amp);
+  }
+  g.lineTo(W + 4, H);
+  g.closePath();
+  g.fill();
+
+  if (!structures) return;
+  const c0 = Math.floor((off - 60) / cell), c1 = Math.floor((off + W + 60) / cell);
+  for (let c = c0; c <= c1; c++){
+    const rng = mulberry32((c * 2654435761) ^ seed);
+    const jitter = rng() * cell * .6;
+    const sx = c * cell - off + jitter;
+    if (sx < -50 || sx > W + 50) continue;
+    const gy = baseY - fbm((sx + off) / wl, seed) * amp + 2;
+    const roll = rng();
+    const density = .12 + sceneCur.urban * .55;
+    const treeDensity = .08 + sceneCur.forest * .5;
+    if (roll < density){
+      const kind = rng();
+      g.fillStyle = opts.structColor;
+      if (kind < .38) drawSpire(g, sx, gy, 26 + rng() * 46 * (1 + sceneCur.urban), 5 + rng() * 5, rng());
+      else if (kind < .72) drawTower(g, rng, sx, gy, 22 + rng() * 40 * (1 + sceneCur.urban * .8), 9 + rng() * 8, .25 + sceneCur.urban * .6);
+      else drawCrystal(g, sx, gy, 18 + rng() * 26, 8 + rng() * 6);
+    } else if (roll < density + treeDensity){
+      drawGiantTree(g, rng, sx, gy, 24 + rng() * 30, 14 + rng() * 12);
+    }
+  }
+}
+
+/* ember particles */
+const embers = [];
+function spawnEmber(){
+  embers.push({
+    x: Math.random() * W, y: H + 6,
+    vy: -(8 + Math.random() * 20) / 60,
+    vx: 0, life: 1, size: .8 + Math.random() * 1.6,
+    hot: Math.random() < .5
+  });
+}
+
+let t0 = performance.now();
+function frame(now){
+  const dt = Math.min(50, now - t0) / 1000; t0 = now;
+  const time = now / 1000;
+
+  /* smooth toward map state */
+  const wo = worldOffsets();
+  cur.lateral = lerp(cur.lateral, wo.lateral, .10);
+  cur.forward = lerp(cur.forward, wo.forward, .10);
+  cur.zScale  = lerp(cur.zScale,  wo.zScale,  .06);
+  cur.bearing = lerp(cur.bearing, target.bearing, .12);
+  for (const k in scene) sceneCur[k] = lerp(sceneCur[k], scene[k], .05);
+
+  windVX = lerp(windVX, (cur.lateral - lastLateral) * -0.6, .2);
+  lastLateral = cur.lateral;
+
+  const horizon = H * .60;
+  const px = 0.06 * cur.zScale;                 /* px per metre feel */
+  const drift = reduceMotion ? 0 : time;
+
+  /* SKY */
+  const sky = ctx.createLinearGradient(0, 0, 0, horizon * 1.25);
+  sky.addColorStop(0, '#0a0710');
+  sky.addColorStop(.45, '#181231');
+  sky.addColorStop(.8, '#31204a');
+  sky.addColorStop(1, 'rgba(217,96,58,.42)');
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, W, H);
+
+  /* stars: shift with bearing so rotating the map turns the heavens */
+  if (starCvs){
+    const shift = ((cur.bearing * 1.6) % 120 + 120) % 120;
+    ctx.globalAlpha = .9;
+    ctx.drawImage(starCvs, -shift * DPR, 0, (W + 120) * DPR, H * DPR, 0, 0, W + 120, H);
+    ctx.globalAlpha = 1;
+  }
+
+  /* aurora ribbons — co-prime periods 7.3 / 11.7 s */
+  if (!reduceMotion){
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+    for (let a = 0; a < 2; a++){
+      const period = a === 0 ? 7.3 : 11.7;
+      const yBase = horizon * (.22 + a * .14);
+      const grad = ctx.createLinearGradient(0, yBase - 30, 0, yBase + 30);
+      grad.addColorStop(0, 'rgba(107,79,163,0)');
+      grad.addColorStop(.5, a === 0 ? 'rgba(107,79,163,.16)' : 'rgba(142,163,199,.10)');
+      grad.addColorStop(1, 'rgba(107,79,163,0)');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.moveTo(0, yBase);
+      for (let x = 0; x <= W; x += 12){
+        ctx.lineTo(x, yBase + Math.sin(x * .012 + drift * (6.28 / period) + a * 2) * 16);
+      }
+      ctx.lineTo(W, yBase + 34); ctx.lineTo(0, yBase + 34);
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  /* twin moons — parallax with bearing */
+  const moonShift = cur.bearing * .5;
+  ctx.save();
+  let mg = ctx.createRadialGradient(W * .74 - moonShift, horizon * .28, 2, W * .74 - moonShift, horizon * .28, 46);
+  mg.addColorStop(0, 'rgba(246,223,164,.95)');
+  mg.addColorStop(.35, 'rgba(227,176,75,.5)');
+  mg.addColorStop(1, 'rgba(227,176,75,0)');
+  ctx.fillStyle = mg; ctx.fillRect(0, 0, W, horizon);
+  ctx.fillStyle = '#f2e3bd';
+  ctx.beginPath(); ctx.arc(W * .74 - moonShift, horizon * .28, 15, 0, 7); ctx.fill();
+  mg = ctx.createRadialGradient(W * .2 - moonShift * 1.4, horizon * .16, 1, W * .2 - moonShift * 1.4, horizon * .16, 22);
+  mg.addColorStop(0, 'rgba(217,96,58,.8)');
+  mg.addColorStop(1, 'rgba(217,96,58,0)');
+  ctx.fillStyle = mg; ctx.fillRect(0, 0, W, horizon);
+  ctx.fillStyle = '#d9784f';
+  ctx.beginPath(); ctx.arc(W * .2 - moonShift * 1.4, horizon * .16, 6, 0, 7); ctx.fill();
+  ctx.restore();
+
+  /* FAR mountains */
+  drawBand(ctx, {
+    off: cur.lateral * px * .10 + cur.forward * px * .03,
+    seed: 0xA11CE, baseY: horizon, amp: horizon * .42, wl: 150,
+    color: '#150f28', cell: 130, structures: false
+  });
+
+  /* floating islands drift with mid parallax */
+  {
+    const off = cur.lateral * px * .22 + cur.forward * px * .06;
+    const cell = 260;
+    const c0 = Math.floor((off - 100) / cell), c1 = Math.floor((off + W + 100) / cell);
+    for (let c = c0; c <= c1; c++){
+      const rng = mulberry32((c * 40503) ^ 0xF10A7);
+      if (rng() < .34){
+        const sx = c * cell - off + rng() * cell * .7;
+        const sy = horizon * (.24 + rng() * .3);
+        drawIsland(ctx, rng, sx, sy, 20 + rng() * 26);
       }
     }
-    renderMap();
-    saveState();
-    showToast('Map generated from photo!');
-  };
-  img.src = state.landscapePhoto;
-}
+  }
 
-// ===================== CHARACTER PHOTO =====================
-function handleCharPhoto(file) {
-  const reader = new FileReader();
-  reader.onload = e => {
-    state.charPhoto = e.target.result;
-    const img = document.getElementById('charPhotoImg');
-    img.src = state.charPhoto;
-    img.style.display = 'block';
-    document.getElementById('charPhotoOpts').style.display = 'flex';
-    document.getElementById('charPhotoHint').textContent = 'Photo loaded. Click "Extract colors".';
-    showToast('Character photo loaded.');
-  };
-  reader.readAsDataURL(file);
-}
+  /* MID ridge with citadels */
+  drawBand(ctx, {
+    off: cur.lateral * px * .32 + cur.forward * px * .10,
+    seed: 0xB227, baseY: horizon + H * .05, amp: horizon * .3, wl: 95,
+    color: '#1d1735', structColor: 'rgba(24,18,44,.96)',
+    cell: 92, structures: true, time
+  });
 
-function clearCharPhoto() {
-  state.charPhoto = null;
-  document.getElementById('charPhotoImg').style.display = 'none';
-  document.getElementById('charPhotoOpts').style.display = 'none';
-  document.getElementById('charPhotoInput').value = '';
-  document.getElementById('charPhotoHint').textContent = 'Photo will auto-extract colors';
-}
+  /* mist sea — swells with real water nearby */
+  if (sceneCur.water > .02){
+    const my = horizon + H * .02;
+    const grad = ctx.createLinearGradient(0, my - 26, 0, my + 44);
+    grad.addColorStop(0, 'rgba(142,163,199,0)');
+    grad.addColorStop(.5, 'rgba(142,163,199,' + (0.34 * sceneCur.water) + ')');
+    grad.addColorStop(1, 'rgba(142,163,199,0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, my - 26, W, 74);
+  }
 
-function extractCharColors() {
-  if (!state.charPhoto) return;
-  const char = state.characters.find(c => c.id === state.activeCharId);
-  if (!char) return;
+  /* NEAR hills, trees, keeps */
+  drawBand(ctx, {
+    off: cur.lateral * px * .7 + cur.forward * px * .22,
+    seed: 0xC33D, baseY: H * .82, amp: H * .17, wl: 70,
+    color: '#241b3f', structColor: 'rgba(16,11,30,.98)',
+    cell: 78, structures: true, time
+  });
 
-  const img = new Image();
-  img.onload = () => {
-    const canvas = document.getElementById('processCanvas');
-    const ctx = canvas.getContext('2d');
-    const w = 64, h = 64;
-    canvas.width = w; canvas.height = h;
-    ctx.drawImage(img, 0, 0, w, h);
-    const data = ctx.getImageData(0, 0, w, h).data;
-
-    // Sample regions: top = hair, center = skin, lower = outfit
-    const hairSamples = sampleRegion(data, w, h, 0.2, 0.0, 0.8, 0.3);
-    const skinSamples = sampleRegion(data, w, h, 0.25, 0.3, 0.75, 0.6);
-    const outfitSamples = sampleRegion(data, w, h, 0.2, 0.55, 0.8, 1.0);
-
-    char.colors.hair = dominantColor(hairSamples);
-    char.colors.skin = dominantColor(skinSamples);
-    char.colors.outfit = dominantColor(outfitSamples);
-
-    renderCharForm();
-    renderCharPreview();
-    saveState();
-    showToast('Colors extracted from photo!');
-  };
-  img.src = state.charPhoto;
-}
-
-function sampleRegion(data, w, h, x0, y0, x1, y1) {
-  const samples = [];
-  const sx = Math.floor(w * x0), sy = Math.floor(h * y0);
-  const ex = Math.floor(w * x1), ey = Math.floor(h * y1);
-  for (let y = sy; y < ey; y += 2) {
-    for (let x = sx; x < ex; x += 2) {
-      const i = (y * w + x) * 4;
-      samples.push({ r: data[i], g: data[i+1], b: data[i+2] });
+  /* leyline road — appears where mortal roads run */
+  if (sceneCur.road > .05){
+    const off = cur.lateral * px * .7;
+    const a = Math.min(.9, sceneCur.road);
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+    ctx.lineCap = 'round';
+    const bendSeed = 0xD00D;
+    const topX = W / 2 + (fbm(off / 400, bendSeed) - .5) * W * .5;
+    const midX = W / 2 + (fbm(off / 190 + 3.7, bendSeed) - .5) * W * .8;
+    for (let pass = 0; pass < 2; pass++){
+      ctx.strokeStyle = pass === 0
+        ? 'rgba(227,176,75,' + (a * .16) + ')'
+        : 'rgba(246,223,164,' + (a * .6) + ')';
+      ctx.lineWidth = pass === 0 ? 26 : 3;
+      ctx.beginPath();
+      ctx.moveTo(W / 2 + (fbm(off / 90, bendSeed) - .5) * 60, H + 8);
+      ctx.quadraticCurveTo(midX, H * .86, topX, horizon + H * .055);
+      ctx.stroke();
     }
-  }
-  return samples;
-}
-
-function dominantColor(samples) {
-  // Simple k-means-like: find most common color bucket
-  const buckets = {};
-  let best = null, bestCount = 0;
-  for (const s of samples) {
-    // Quantize to 32-level buckets
-    const key = `${Math.floor(s.r/32)}_${Math.floor(s.g/32)}_${Math.floor(s.b/32)}`;
-    buckets[key] = (buckets[key] || 0) + 1;
-    if (buckets[key] > bestCount) {
-      bestCount = buckets[key];
-      best = s;
+    /* pulses travel toward the horizon as the wayfarer moves */
+    if (!reduceMotion){
+      const flow = ((cur.forward * px * .12 + time * 24) % 60 + 60) % 60;
+      ctx.fillStyle = 'rgba(246,223,164,' + (a * .8) + ')';
+      for (let d = flow; d < 100; d += 30){
+        const tt = d / 100;
+        const xx = (1 - tt) * (1 - tt) * (W / 2) + 2 * (1 - tt) * tt * midX + tt * tt * topX;
+        const yy = (1 - tt) * (1 - tt) * (H + 8) + 2 * (1 - tt) * tt * (H * .86) + tt * tt * (horizon + H * .055);
+        ctx.beginPath(); ctx.arc(xx, yy, 2.4 * (1 - tt * .6), 0, 7); ctx.fill();
+      }
     }
+    ctx.restore();
   }
-  if (!best) best = samples[0];
-  return rgbToHex(best.r, best.g, best.b);
-}
 
-// ===================== UTILS =====================
-function hexToRgb(hex) {
-  const n = parseInt(hex.replace('#',''), 16);
-  return { r: (n>>16)&255, g: (n>>8)&255, b: n&255 };
-}
-function rgbToHex(r,g,b) {
-  return '#' + [r,g,b].map(x => Math.max(0,Math.min(255,x)).toString(16).padStart(2,'0')).join('');
-}
-
-// ===================== TABS =====================
-function switchTab(tab) {
-  state.activeTab = tab;
-  document.querySelectorAll('.rpg-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
-  document.querySelectorAll('.rpg-panel').forEach(p => p.classList.toggle('rpg-hidden', !p.id.endsWith(tab)));
-  if (tab === 'export') updateExport();
-}
-
-// ===================== LANDSCAPE =====================
-function ensureMapSize() {
-  const needed = state.map.width * state.map.height;
-  while (state.map.tiles.length < needed) state.map.tiles.push('empty');
-  state.map.tiles = state.map.tiles.slice(0, needed);
-}
-
-function buildPalette() {
-  const container = document.getElementById('tilePalette');
-  container.innerHTML = '';
-  Object.entries(TILES).forEach(([key, tile]) => {
-    const btn = document.createElement('div');
-    btn.className = 'tile-btn' + (key === state.selectedTile ? ' selected' : '');
-    btn.innerHTML = `<svg class="svg-tile" viewBox="0 0 24 24">${tile.svg}</svg><span class="tlabel">${tile.name}</span>`;
-    btn.addEventListener('click', () => {
-      state.selectedTile = key;
-      document.querySelectorAll('.tile-btn').forEach(b => b.classList.remove('selected'));
-      btn.classList.add('selected');
-    });
-    container.appendChild(btn);
-  });
-}
-
-function renderMap() {
-  const grid = document.getElementById('mapGrid');
-  grid.innerHTML = '';
-  grid.style.gridTemplateColumns = `repeat(${state.map.width}, 1fr)`;
-  const size = Math.min(grid.clientWidth / state.map.width, 44);
-  grid.style.gridAutoRows = `${size}px`;
-
-  state.map.tiles.forEach((tileKey, idx) => {
-    const cell = document.createElement('div');
-    cell.className = 'map-cell';
-    const tile = TILES[tileKey] || TILES.empty;
-    cell.innerHTML = `<svg class="tile-icon" viewBox="0 0 24 24">${tile.svg}</svg>`;
-    cell.addEventListener('mousedown', e => { e.preventDefault(); paint(idx); });
-    cell.addEventListener('mouseenter', e => { if (e.buttons === 1) paint(idx); });
-    grid.appendChild(cell);
-  });
-}
-
-function paint(idx) {
-  if (state.tool === 'brush') {
-    state.map.tiles[idx] = state.selectedTile;
-  } else if (state.tool === 'eraser') {
-    state.map.tiles[idx] = 'empty';
-  } else if (state.tool === 'fill') {
-    const target = state.map.tiles[idx];
-    const fillWith = state.selectedTile;
-    if (target === fillWith) return;
-    floodFill(idx % state.map.width, Math.floor(idx / state.map.width), target, fillWith);
+  /* embers */
+  if (!reduceMotion){
+    if (embers.length < 42 && Math.random() < .5) spawnEmber();
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+    for (let i = embers.length - 1; i >= 0; i--){
+      const e = embers[i];
+      e.vx = lerp(e.vx, windVX * .02, .1);
+      e.x += e.vx + Math.sin(time * 2 + i) * .15;
+      e.y += e.vy * 60 * dt;
+      e.life -= dt * .22;
+      if (e.life <= 0 || e.y < -8){ embers.splice(i, 1); continue; }
+      ctx.fillStyle = e.hot
+        ? 'rgba(217,96,58,' + (e.life * .8) + ')'
+        : 'rgba(227,176,75,' + (e.life * .7) + ')';
+      ctx.beginPath(); ctx.arc(e.x, e.y, e.size, 0, 7); ctx.fill();
+    }
+    ctx.restore();
   }
-  renderMap();
-  saveState();
+
+  /* atmosphere + vignette */
+  const fog = ctx.createLinearGradient(0, horizon - 40, 0, H);
+  fog.addColorStop(0, 'rgba(49,32,74,0)');
+  fog.addColorStop(1, 'rgba(10,7,16,.55)');
+  ctx.fillStyle = fog; ctx.fillRect(0, horizon - 40, W, H - horizon + 40);
+  const vig = ctx.createRadialGradient(W / 2, H * .5, H * .35, W / 2, H * .5, H * .95);
+  vig.addColorStop(0, 'rgba(10,7,16,0)');
+  vig.addColorStop(1, 'rgba(10,7,16,.5)');
+  ctx.fillStyle = vig; ctx.fillRect(0, 0, W, H);
+
+  requestAnimationFrame(frame);
 }
 
-function floodFill(x, y, target, fill) {
-  if (x < 0 || y < 0 || x >= state.map.width || y >= state.map.height) return;
-  const idx = y * state.map.width + x;
-  if (state.map.tiles[idx] !== target) return;
-  state.map.tiles[idx] = fill;
-  floodFill(x+1, y, target, fill);
-  floodFill(x-1, y, target, fill);
-  floodFill(x, y+1, target, fill);
-  floodFill(x, y-1, target, fill);
-}
-
-function clearMap() {
-  state.map.tiles = state.map.tiles.map(() => 'empty');
-  renderMap();
-  saveState();
-}
-
-function applyMapSize() {
-  const w = parseInt(document.getElementById('mapW').value) || 12;
-  const h = parseInt(document.getElementById('mapH').value) || 10;
-  state.map.width = Math.max(4, Math.min(32, w));
-  state.map.height = Math.max(4, Math.min(32, h));
-  document.getElementById('mapW').value = state.map.width;
-  document.getElementById('mapH').value = state.map.height;
-  ensureMapSize();
-  renderMap();
-  saveState();
-}
-
-function resizeMapPrompt() { applyMapSize(); }
-
-// ===================== CHARACTERS =====================
-function addCharacter() {
-  const id = 'c' + Date.now() + Math.random().toString(36).slice(2,6);
-  const char = {
-    id,
-    name: 'Hero ' + (state.characters.length + 1),
-    class: 'Warrior',
-    level: 1,
-    stats: { str: 10, dex: 10, int: 10, con: 10, wis: 10, cha: 10 },
-    colors: { skin: '#ffccaa', hair: '#5d4037', outfit: '#1976d2' },
-    equipment: { weapon: 'Iron Sword', armor: 'Leather Vest', accessory: 'None' },
-    skills: ['Attack','Defend'],
-  };
-  state.characters.push(char);
-  renderCharList();
-  selectCharacter(id);
-  saveState();
-}
-
-function deleteCharacter(id, ev) {
-  ev.stopPropagation();
-  state.characters = state.characters.filter(c => c.id !== id);
-  if (state.activeCharId === id) state.activeCharId = state.characters[0]?.id || null;
-  renderCharList();
-  if (state.activeCharId) selectCharacter(state.activeCharId);
-  else document.getElementById('charForm').innerHTML = '<div style="color:#666;font-size:14px;">No character selected. Create one to start.</div>';
-  saveState();
-}
-
-function selectCharacter(id) {
-  state.activeCharId = id;
-  renderCharList();
-  renderCharForm();
-  renderCharPreview();
-}
-
-function renderCharList() {
-  const container = document.getElementById('charList');
-  container.innerHTML = '';
-  state.characters.forEach(char => {
-    const row = document.createElement('div');
-    row.className = 'char-row' + (char.id === state.activeCharId ? ' active' : '');
-    row.innerHTML = `
-      <div>
-        <div class="char-row-name">${escapeHtml(char.name)}</div>
-        <div class="char-row-meta">Lv.${char.level} ${char.class}</div>
-      </div>
-      <div class="char-row-actions">
-        <button style="background:none;border:none;cursor:pointer;color:#c62828;padding:4px;" onclick="deleteCharacter('${char.id}',event)">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M8.10001 3C8.10001 2.50294 8.50295 2.1 9.00001 2.1H15C15.4971 2.1 15.9 2.50294 15.9 3C15.9 3.49706 15.4971 3.9 15 3.9H9.00001C8.50295 3.9 8.10001 3.49706 8.10001 3Z" fill="currentColor"/><path d="M10 15.9C9.50295 15.9 9.10001 15.4971 9.10001 15L9.10001 10C9.10001 9.50294 9.50295 9.1 10 9.1C10.4971 9.1 10.9 9.50294 10.9 10L10.9 15C10.9 15.4971 10.4971 15.9 10 15.9Z" fill="currentColor"/><path d="M13.1 15C13.1 15.4971 13.5029 15.9 14 15.9C14.4971 15.9 14.9 15.4971 14.9 15L14.9 10C14.9 9.50294 14.4971 9.1 14 9.1C13.5029 9.1 13.1 9.50294 13.1 10V15Z" fill="currentColor"/><path fill-rule="evenodd" clip-rule="evenodd" d="M2.10001 6C2.10001 5.50294 2.50295 5.1 3.00001 5.1H4.99152C4.99785 5.09993 5.00417 5.09993 5.01048 5.1H18.9895C18.9958 5.09993 19.0021 5.09993 19.0085 5.1H21C21.4971 5.1 21.9 5.50294 21.9 6C21.9 6.49706 21.4971 6.9 21 6.9H19.8281L18.8448 18.6993C18.7412 19.9432 17.7013 20.9 16.4531 20.9H7.54686C6.29865 20.9 5.25881 19.9432 5.15515 18.6993L4.17188 6.9H3.00001C2.50295 6.9 2.10001 6.49706 2.10001 6ZM5.97811 6.9L18.0219 6.9L17.0511 18.5498C17.0251 18.8608 16.7652 19.1 16.4531 19.1H7.54686C7.23481 19.1 6.97485 18.8608 6.94893 18.5498L5.97811 6.9Z" fill="currentColor"/></svg>
-        </button>
-      </div>`;
-    row.addEventListener('click', () => selectCharacter(char.id));
-    container.appendChild(row);
-  });
-}
-
-function renderCharForm() {
-  const char = state.characters.find(c => c.id === state.activeCharId);
-  const form = document.getElementById('charForm');
-  if (!char) { form.innerHTML = ''; return; }
-  form.innerHTML = `
-    <div class="field-row">
-      <div class="field"><label>Name</label><input id="cName" value="${escapeHtml(char.name)}"></div>
-      <div class="field"><label>Class</label>
-        <select id="cClass">${CLASSES.map(c => `<option value="${c}" ${char.class===c?'selected':''}>${c}</option>`).join('')}</select>
-      </div>
-    </div>
-    <div class="field-row">
-      <div class="field"><label>Level</label><input id="cLevel" type="number" min="1" max="99" value="${char.level}"></div>
-      <div class="field"><label>Weapon</label><input id="cWeapon" value="${escapeHtml(char.equipment.weapon)}"></div>
-    </div>
-    <div class="field"><label>Stats</label>
-      <div class="stat-grid">
-        ${Object.entries(char.stats).map(([k,v]) => `
-          <div class="stat-box"><label>${k.toUpperCase()}</label><input type="number" min="1" max="99" data-stat="${k}" value="${v}"></div>
-        `).join('')}
-      </div>
-    </div>
-    <div class="field"><label>Appearance colors</label>
-      <div class="color-row">
-        <div><input type="color" id="cSkin" value="${char.colors.skin}"><span style="font-size:11px;color:#999;">Skin</span></div>
-        <div><input type="color" id="cHair" value="${char.colors.hair}"><span style="font-size:11px;color:#999;">Hair</span></div>
-        <div><input type="color" id="cOutfit" value="${char.colors.outfit}"><span style="font-size:11px;color:#999;">Outfit</span></div>
-      </div>
-    </div>
-    <div class="field-row">
-      <div class="field"><label>Armor</label><input id="cArmor" value="${escapeHtml(char.equipment.armor)}"></div>
-      <div class="field"><label>Accessory</label><input id="cAccessory" value="${escapeHtml(char.equipment.accessory)}"></div>
-    </div>
-    <div class="field"><label>Skills (comma separated)</label><input id="cSkills" value="${escapeHtml(char.skills.join(', '))}"></div>
-  `;
-
-  const bind = (id, path, fn) => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.addEventListener('input', () => {
-      if (fn) fn(el.value);
-      else setPath(char, path, el.value);
-      renderCharPreview();
-      saveState();
-    });
-  };
-  bind('cName', 'name');
-  bind('cClass', 'class');
-  bind('cLevel', 'level', v => char.level = Math.max(1, Math.min(99, parseInt(v)||1)));
-  bind('cWeapon', 'equipment.weapon');
-  bind('cArmor', 'equipment.armor');
-  bind('cAccessory', 'equipment.accessory');
-  bind('cSkills', 'skills', v => char.skills = v.split(',').map(s=>s.trim()).filter(Boolean));
-  bind('cSkin', 'colors.skin');
-  bind('cHair', 'colors.hair');
-  bind('cOutfit', 'colors.outfit');
-
-  document.querySelectorAll('.stat-box input').forEach(inp => {
-    inp.addEventListener('input', () => {
-      const k = inp.dataset.stat;
-      char.stats[k] = Math.max(1, Math.min(99, parseInt(inp.value)||1));
-      renderCharPreview();
-      saveState();
-    });
-  });
-}
-
-function setPath(obj, path, val) {
-  const keys = path.split('.');
-  let cur = obj;
-  for (let i=0;i<keys.length-1;i++) cur = cur[keys[i]];
-  cur[keys[keys.length-1]] = val;
-}
-
-function renderCharPreview() {
-  const char = state.characters.find(c => c.id === state.activeCharId);
-  const svg = document.getElementById('charSvg');
-  if (!char) { svg.innerHTML = ''; return; }
-  const c = char.colors;
-  svg.innerHTML = `
-    <defs>
-      <linearGradient id="grad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${c.outfit}"/><stop offset="100%" stop-color="${darken(c.outfit,20)}"/></linearGradient>
-    </defs>
-    <ellipse cx="70" cy="165" rx="28" ry="6" fill="rgba(0,0,0,0.12)"/>
-    <path d="M50 160 L50 110 Q50 95 70 95 Q90 95 90 110 L90 160 Z" fill="url(#grad)"/>
-    <circle cx="70" cy="72" r="22" fill="${c.skin}"/>
-    <path d="M48 68 Q48 45 70 45 Q92 45 92 68 Q92 55 70 55 Q48 55 48 68" fill="${c.hair}"/>
-    <circle cx="63" cy="72" r="2.5" fill="#333"/>
-    <circle cx="77" cy="72" r="2.5" fill="#333"/>
-    <path d="M65 82 Q70 86 75 82" stroke="#333" stroke-width="1.5" fill="none" stroke-linecap="round"/>
-    <rect x="92" y="100" width="5" height="45" rx="2" fill="#90a4ae"/>
-    <rect x="88" y="100" width="13" height="4" rx="1" fill="#546e7a"/>
-  `;
-}
-
-function darken(hex, amt) {
-  const num = parseInt(hex.replace('#',''),16);
-  const r = Math.max(0, (num>>16)-amt);
-  const g = Math.max(0, ((num>>8)&0x00FF)-amt);
-  const b = Math.max(0, (num&0x0000FF)-amt);
-  return '#' + ((1<<24)+(r<<16)+(g<<8)+b).toString(16).slice(1);
-}
-
-// ===================== EXPORT =====================
-function updateExport() {
-  const payload = {
-    version: '1.0',
-    generated: new Date().toISOString(),
-    maps: [{
-      id: 'map_' + state.map.name.toLowerCase().replace(/\s+/g,'_'),
-      name: state.map.name,
-      width: state.map.width,
-      height: state.map.height,
-      tileset: Object.fromEntries(Object.entries(TILES).map(([k,v])=>[k,{name:v.name,color:v.color}])),
-      layers: [{ name: 'ground', tiles: state.map.tiles }],
-    }],
-    characters: state.characters.map(c => ({
-      id: c.id,
-      name: c.name,
-      class: c.class,
-      level: c.level,
-      stats: c.stats,
-      colors: c.colors,
-      equipment: c.equipment,
-      skills: c.skills,
-    })),
-  };
-  document.getElementById('exportCode').textContent = JSON.stringify(payload, null, 2);
-}
-
-function copyExport() {
-  const text = document.getElementById('exportCode').textContent;
-  navigator.clipboard.writeText(text).then(() => showToast('Copied to clipboard!'));
-}
-
-function downloadExport() {
-  const text = document.getElementById('exportCode').textContent;
-  const blob = new Blob([text], {type:'application/json'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'rpg_game_data.json';
-  a.click();
-  URL.revokeObjectURL(url);
-  showToast('Downloaded rpg_game_data.json');
-}
-
-function showToast(msg) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2000);
-}
-
-function escapeHtml(str) {
-  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-// Start
-init();
+resize();
+updateHUD();
+requestAnimationFrame(frame);
 </script>
-
 </body>
 </html>
