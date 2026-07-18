@@ -271,9 +271,77 @@
   #diagLog .err{ color:#f08a6a; }
   #diagLog .ok{ color:#a8c48a; }
 
+  /* ---------- WAYSTONE (dropped pin) ---------- */
+  .waystone-chip{
+    left:50%; bottom:64px; transform:translateX(-50%);
+    display:none; align-items:center; gap:9px;
+    padding:5px 8px 5px 14px;
+    background:rgba(10,7,16,.72);
+    border:1px solid rgba(227,176,75,.5);
+    border-radius:2px;
+    backdrop-filter:blur(4px);
+    -webkit-backdrop-filter:blur(4px);
+    font-size:10.5px; letter-spacing:.1em; font-weight:500;
+    color:var(--gold); white-space:nowrap;
+    pointer-events:auto;
+  }
+  .waystone-chip.show{ display:flex; }
+  .waystone-chip .ws-gem{
+    font-size:9px;
+    animation:wsGemPulse 2.3s ease-in-out infinite;
+  }
+  @keyframes wsGemPulse{ 0%,100%{ opacity:.6; } 50%{ opacity:1; } }
+  .waystone-chip button{
+    background:none; border:none; cursor:pointer;
+    color:var(--mist); font-size:12px; line-height:1;
+    padding:4px 7px;
+  }
+
+  .waystone-pin{ width:26px; height:36px; position:relative; }
+  .waystone-pin .head{
+    position:absolute; left:50%; top:4px;
+    width:14px; height:14px;
+    transform:translateX(-50%) rotate(45deg);
+    background:linear-gradient(135deg, #f6dfa4, var(--gold) 60%, var(--ember));
+    border:1px solid rgba(246,223,164,.95);
+    box-shadow:0 0 12px rgba(227,176,75,.9), 0 0 30px rgba(217,96,58,.4);
+    animation:wsHover 3.1s ease-in-out infinite;
+  }
+  .waystone-pin .stem{
+    position:absolute; left:50%; top:17px;
+    width:1.5px; height:15px;
+    transform:translateX(-50%);
+    background:linear-gradient(180deg, var(--gold), transparent);
+  }
+  .waystone-pin .base{
+    position:absolute; left:50%; bottom:0;
+    width:12px; height:4px;
+    transform:translateX(-50%);
+    background:radial-gradient(ellipse, rgba(227,176,75,.6), transparent 70%);
+  }
+  @keyframes wsHover{
+    0%,100%{ transform:translateX(-50%) rotate(45deg) translateY(0); }
+    50%{ transform:translateX(-50%) rotate(45deg) translateY(-2.5px); }
+  }
+
+  .drop-ripple{
+    position:absolute; z-index:30;
+    width:12px; height:12px; margin:-6px 0 0 -6px;
+    border:1.5px solid var(--gold);
+    border-radius:50%;
+    pointer-events:none;
+    animation:dropRipple .7s ease-out forwards;
+  }
+  @keyframes dropRipple{
+    0%{ transform:scale(.4); opacity:1; }
+    100%{ transform:scale(4.5); opacity:0; }
+  }
+
   @media (prefers-reduced-motion: reduce){
     .threshold .gem{ animation:none; }
     .rune-marker .ring{ animation:none; opacity:.4; transform:scale(1.4); }
+    .waystone-pin .head{ animation:none; }
+    .waystone-chip .ws-gem{ animation:none; }
   }
 </style>
 </head>
@@ -306,8 +374,14 @@
       <span class="rune">◆</span>
     </div>
 
+    <div class="hud waystone-chip" id="waystoneChip">
+      <span class="ws-gem">◆</span>
+      <span id="waystoneText">Waystone</span>
+      <button id="waystoneClear" aria-label="Remove waystone">✕</button>
+    </div>
+
     <div class="hud hint-toast" id="hintToast">
-      Drag the map below — the realm above follows your path
+      Drag the map to wander — press &amp; hold to plant a waystone
     </div>
   </section>
 
@@ -449,6 +523,134 @@ var scene = { water:0, forest:0, urban:.4, road:.4 };
 var sceneCur = { water:0, forest:0, urban:.4, road:.4 };
 var windVX = 0, lastLateral = 0, realmCell = null;
 var map = null, mapReady = false, userMarker = null;
+var pin = null;              /* { lng, lat } — the dropped waystone */
+var pinMarker = null;        /* maplibre marker when map mode active */
+
+/* ---------- waystone helpers ---------- */
+function fmtDist(m){
+  return m < 1000 ? Math.round(m) + ' m' : (m / 1000).toFixed(1) + ' km';
+}
+/* flat-earth approx is plenty at city scale */
+function pinDelta(){
+  if (!pin) return null;
+  var latR = target.lat * Math.PI / 180;
+  var dE = (pin.lng - target.lng) * 111320 * Math.cos(latR);
+  var dN = (pin.lat - target.lat) * 110540;
+  var dist = Math.sqrt(dE * dE + dN * dN);
+  var brgTo = Math.atan2(dE, dN) * 180 / Math.PI;          /* 0 = north */
+  var rel = ((brgTo - cur.bearing) % 360 + 540) % 360 - 180; /* [-180,180] vs view */
+  return { dist:dist, rel:rel };
+}
+
+function dropPin(lng, lat, screenX, screenY){
+  pin = { lng:lng, lat:lat };
+  if (navigator.vibrate) navigator.vibrate(30);
+  logDiag('waystone dropped: ' + fmtCoord(lat, lng), 'ok');
+
+  /* ripple at touch point */
+  if (screenX !== undefined){
+    var rip = document.createElement('div');
+    rip.className = 'drop-ripple';
+    rip.style.left = screenX + 'px';
+    rip.style.top = screenY + 'px';
+    document.getElementById('mapWrap').appendChild(rip);
+    setTimeout(function(){ rip.remove(); }, 750);
+  }
+
+  if (map){
+    if (pinMarker){ pinMarker.setLngLat([lng, lat]); }
+    else {
+      var el = document.createElement('div');
+      el.className = 'waystone-pin';
+      el.innerHTML = '<div class="head"></div><div class="stem"></div><div class="base"></div>';
+      pinMarker = new maplibregl.Marker({ element:el, anchor:'bottom' })
+        .setLngLat([lng, lat]).addTo(map);
+    }
+  }
+  document.getElementById('waystoneChip').classList.add('show');
+  showGeoNote('Waystone planted — the realm will mark it', 2600);
+}
+function clearPin(){
+  pin = null;
+  if (pinMarker){ pinMarker.remove(); pinMarker = null; }
+  document.getElementById('waystoneChip').classList.remove('show');
+  logDiag('waystone cleared');
+}
+document.getElementById('waystoneClear').addEventListener('click', clearPin);
+
+/* update chip readout ~3x/s */
+setInterval(function(){
+  if (!pin) return;
+  var pd = pinDelta();
+  var dir = Math.abs(pd.rel) < 20 ? 'ahead'
+          : (pd.rel > 0 ? 'to your right' : 'to your left');
+  if (Math.abs(pd.rel) > 150) dir = 'behind you';
+  document.getElementById('waystoneText').textContent =
+    'Waystone \u00B7 ' + fmtDist(pd.dist) + ' \u00B7 ' + dir;
+}, 320);
+
+/* ---------- long-press to drop (works in map + ghost modes) ----------
+   Manual detection: MapLibre doesn't emit contextmenu reliably on iOS,
+   and this path must also work when the ghost map is active. */
+(function(){
+  var wrap = document.getElementById('mapWrap');
+  var lpTimer = null, lpStart = null, lpId = null, lpCount = 0;
+
+  function cancelLP(){
+    if (lpTimer){ clearTimeout(lpTimer); lpTimer = null; }
+    lpStart = null; lpId = null;
+  }
+  wrap.addEventListener('pointerdown', function(ev){
+    if (ev.target.closest('.recenter') || ev.target.closest('.diag-btn') ||
+        ev.target.closest('.diag-panel') || ev.target.closest('.waystone-chip')) return;
+    lpCount++;
+    if (lpCount > 1){ cancelLP(); return; }   /* pinch = not a long press */
+    lpId = ev.pointerId;
+    lpStart = { x:ev.clientX, y:ev.clientY };
+    lpTimer = setTimeout(function(){
+      lpTimer = null;
+      var rect = wrap.getBoundingClientRect();
+      var px = lpStart.x - rect.left, py = lpStart.y - rect.top;
+      var lnglat = screenToLngLat(px, py);
+      if (lnglat) dropPin(lnglat.lng, lnglat.lat, px, py);
+      lpStart = null;
+    }, 550);
+  }, true);
+  wrap.addEventListener('pointermove', function(ev){
+    if (!lpStart || ev.pointerId !== lpId) return;
+    if (Math.hypot(ev.clientX - lpStart.x, ev.clientY - lpStart.y) > 12) cancelLP();
+  }, true);
+  wrap.addEventListener('pointerup', function(ev){
+    lpCount = Math.max(0, lpCount - 1);
+    if (ev.pointerId === lpId) cancelLP();
+  }, true);
+  wrap.addEventListener('pointercancel', function(ev){
+    lpCount = Math.max(0, lpCount - 1);
+    if (ev.pointerId === lpId) cancelLP();
+  }, true);
+})();
+
+/* screen point (within #mapWrap) -> lng/lat in whichever mode is live */
+function screenToLngLat(px, py){
+  if (map){
+    try{
+      var ll = map.unproject([px, py]);
+      return { lng: ll.lng, lat: ll.lat };
+    }catch(e){ logDiag('unproject failed: ' + e.message, 'err'); return null; }
+  }
+  /* ghost mode: centre of view is target; convert px offset via m/px */
+  var mpp = 156543 * Math.cos(target.lat * Math.PI / 180) / Math.pow(2, target.zoom + 8) * 256;
+  var r = gcvs.parentElement.getBoundingClientRect();
+  var dxm = (px - r.width / 2) * mpp;
+  var dym = (r.height / 2 - py) * mpp;
+  var b = target.bearing * Math.PI / 180;
+  var east  = dxm * Math.cos(b) + dym * Math.sin(b);
+  var north = -dxm * Math.sin(b) + dym * Math.cos(b);
+  return {
+    lng: target.lng + east / (111320 * Math.cos(target.lat * Math.PI / 180)),
+    lat: target.lat + north / 110540
+  };
+}
 
 function showGeoNote(msg, ms){
   var n = document.getElementById('geoNote');
@@ -791,6 +993,62 @@ function frame(now){
     ctx.restore();
   }
 
+  /* WAYSTONE BEACON — a pillar of light where the pin stands.
+     Screen x from bearing-to-pin relative to view; size from distance. */
+  if (pin){
+    var pd = pinDelta();
+    var FOV = 70;                                   /* degrees to screen edge */
+    var inView = Math.abs(pd.rel) <= FOV;
+    var intensity = Math.max(.18, Math.min(1, 1 - pd.dist / 3000));
+    var bob = reduceMotion ? 0 : Math.sin(time * 1.9) * 3;
+
+    if (inView){
+      var bx = W / 2 + (pd.rel / FOV) * (W / 2 - 14);
+      var groundY = horizon + H * .04;
+      var pillarH = (H * .16 + H * .30 * intensity);
+
+      ctx.save();
+      ctx.globalCompositeOperation = 'screen';
+      /* light pillar */
+      var pg = ctx.createLinearGradient(0, groundY - pillarH, 0, groundY);
+      pg.addColorStop(0, 'rgba(246,223,164,0)');
+      pg.addColorStop(.55, 'rgba(227,176,75,' + (.34 * intensity) + ')');
+      pg.addColorStop(1, 'rgba(246,223,164,' + (.75 * intensity) + ')');
+      ctx.fillStyle = pg;
+      var pw = 3 + 9 * intensity;
+      ctx.fillRect(bx - pw / 2, groundY - pillarH, pw, pillarH);
+      /* halo at base */
+      var hg = ctx.createRadialGradient(bx, groundY, 1, bx, groundY, 26 + 30 * intensity);
+      hg.addColorStop(0, 'rgba(227,176,75,' + (.5 * intensity) + ')');
+      hg.addColorStop(1, 'rgba(227,176,75,0)');
+      ctx.fillStyle = hg;
+      ctx.beginPath(); ctx.arc(bx, groundY, 26 + 30 * intensity, 0, 7); ctx.fill();
+      /* floating gem */
+      var gy2 = groundY - pillarH - 6 + bob;
+      ctx.fillStyle = 'rgba(246,223,164,' + (.7 + .3 * intensity) + ')';
+      ctx.save();
+      ctx.translate(bx, gy2); ctx.rotate(Math.PI / 4);
+      var gs = 3 + 4 * intensity;
+      ctx.fillRect(-gs / 2, -gs / 2, gs, gs);
+      ctx.restore();
+      ctx.restore();
+    } else {
+      /* off-view: edge chevron at horizon pointing toward the waystone */
+      var edgeX = pd.rel > 0 ? W - 16 : 16;
+      var dirSign = pd.rel > 0 ? 1 : -1;
+      ctx.save();
+      ctx.globalAlpha = .55 + (reduceMotion ? 0 : Math.sin(time * 3.1) * .25);
+      ctx.strokeStyle = '#e3b04b';
+      ctx.lineWidth = 2; ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(edgeX - 5 * dirSign, horizon - 8);
+      ctx.lineTo(edgeX + 4 * dirSign, horizon);
+      ctx.lineTo(edgeX - 5 * dirSign, horizon + 8);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
   /* embers */
   if (!reduceMotion){
     if (embers.length < 42 && Math.random() < .5) spawnEmber();
@@ -1098,6 +1356,27 @@ function drawGhost(time){
       gctx.beginPath(); gctx.arc(sxp, syp, rr, 0, 7); gctx.stroke();
       gctx.fillStyle = 'rgba(227,176,75,.5)';
       gctx.beginPath(); gctx.arc(sxp, syp, 1.6, 0, 7); gctx.fill();
+    }
+  }
+
+  /* waystone pin */
+  if (pin){
+    var pWx = pin.lng * 111320 * Math.cos(target.lat * Math.PI / 180);
+    var pWy = pin.lat * 110540;
+    var pxp = GW / 2 + (pWx - wxm) / mpp;
+    var pyp = GH / 2 - (pWy - wym) / mpp;
+    if (pxp > -30 && pxp < GW + 30 && pyp > -30 && pyp < GH + 30){
+      var wp = reduceMotion ? .5 : (Math.sin(time * 2.1) * .5 + .5);
+      gctx.strokeStyle = 'rgba(227,176,75,' + (.4 + wp * .4) + ')';
+      gctx.lineWidth = 1.2;
+      gctx.beginPath(); gctx.arc(pxp, pyp, 8 + wp * 4, 0, 7); gctx.stroke();
+      gctx.save();
+      gctx.translate(pxp, pyp); gctx.rotate(Math.PI / 4);
+      gctx.fillStyle = '#e3b04b';
+      gctx.fillRect(-4, -4, 8, 8);
+      gctx.strokeStyle = 'rgba(246,223,164,.9)';
+      gctx.strokeRect(-4, -4, 8, 8);
+      gctx.restore();
     }
   }
 
