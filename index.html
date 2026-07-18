@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RPG World Builder — Photo Edition</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: #fafafa;
+    color: #1a1a1a;
+    height: 100vh;
+    overflow: hidden;
+  }
+  .rpg-app { display: flex; flex-direction: column; height: 100vh; }
+  .rpg-tabs { display: flex; gap: 4px; border-bottom: 1px solid #e0e0e0; padding: 0 16px; background: #fff; }
+  .rpg-tab { padding: 12px 20px; cursor: pointer; border-bottom: 2px solid transparent; color: #666; font-size: 14px; font-weight: 500; background: none; border-top: none; border-left: none; border-right: none; transition: color 0.15s, border-color 0.15s; }
+  .rpg-tab:hover { color: #1a1a1a; }
+  .rpg-tab.active { color: #1a1a1a; border-bottom-color: #1a1a1a; }
+  .rpg-panel { flex: 1; overflow: auto; padding: 16px; }
+  .rpg-hidden { display: none !important; }
+
+  /* Landscape */
+  .landscape-wrap { display: flex; gap: 16px; height: 100%; }
+  .landscape-sidebar { width: 210px; flex-shrink: 0; display: flex; flex-direction: column; gap: 12px; }
+  .landscape-main { flex: 1; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+  .tile-palette { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .tile-btn { width: 100%; aspect-ratio: 1; border: 2px solid #e0e0e0; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; position: relative; transition: border-color 0.15s; background: #fff; }
+  .tile-btn:hover { border-color: #999; }
+  .tile-btn.selected { border-color: #1a1a1a; box-shadow: 0 0 0 1px #1a1a1a; }
+  .tile-btn .tlabel { position: absolute; bottom: 3px; font-size: 10px; color: #999; }
+  .tool-row { display: flex; gap: 6px; }
+  .tool-btn { flex: 1; padding: 8px; border: 1px solid #e0e0e0; border-radius: 8px; background: #fff; cursor: pointer; font-size: 12px; color: #666; transition: all 0.15s; }
+  .tool-btn:hover { background: #f5f5f5; }
+  .tool-btn.active { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+  .map-grid { display: grid; gap: 1px; background: #e0e0e0; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden; flex: 1; }
+  .map-cell { background: #fff; cursor: pointer; position: relative; transition: filter 0.15s; }
+  .map-cell:hover { filter: brightness(0.92); }
+  .map-cell .tile-icon { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+  .map-settings { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; background: #fff; padding: 10px 14px; border-radius: 10px; border: 1px solid #e0e0e0; }
+  .map-settings input, .map-settings select { padding: 6px 10px; border: 1px solid #e0e0e0; border-radius: 8px; font-size: 13px; background: #fff; color: #1a1a1a; }
+  .map-settings label { font-size: 12px; color: #666; font-weight: 500; }
+
+  /* Photo import */
+  .photo-import { border: 2px dashed #ccc; border-radius: 10px; padding: 12px; text-align: center; cursor: pointer; transition: border-color 0.15s, background 0.15s; background: #fff; }
+  .photo-import:hover { border-color: #1a1a1a; background: #f9f9f9; }
+  .photo-import.dragover { border-color: #1a1a1a; background: #f0f0f0; }
+  .photo-import-text { font-size: 12px; color: #666; }
+  .photo-import input[type="file"] { display: none; }
+  .photo-preview { width: 100%; border-radius: 6px; margin-top: 8px; display: none; }
+  .photo-preview.show { display: block; }
+  .import-options { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+
+  /* Characters */
+  .char-wrap { display: flex; gap: 16px; height: 100%; }
+  .char-list { width: 220px; flex-shrink: 0; display: flex; flex-direction: column; gap: 8px; }
+  .char-list-items { flex: 1; overflow: auto; display: flex; flex-direction: column; gap: 4px; }
+  .char-row { padding: 10px 12px; border-radius: 8px; border: 1px solid #e0e0e0; cursor: pointer; display: flex; align-items: center; justify-content: space-between; background: #fff; transition: background 0.15s; }
+  .char-row:hover { background: #f5f5f5; }
+  .char-row.active { border-color: #1a1a1a; background: #f5f5f5; }
+  .char-row-name { font-size: 13px; font-weight: 500; color: #1a1a1a; }
+  .char-row-meta { font-size: 11px; color: #999; }
+  .char-row-actions { opacity: 0; transition: opacity 0.15s; }
+  .char-row:hover .char-row-actions { opacity: 1; }
+  .char-editor { flex: 1; display: flex; gap: 16px; min-width: 0; }
+  .char-form { flex: 1; display: flex; flex-direction: column; gap: 12px; overflow: auto; }
+  .char-preview { width: 180px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .field { display: flex; flex-direction: column; gap: 4px; }
+  .field label { font-size: 12px; color: #666; font-weight: 500; }
+  .field input, .field select { padding: 8px 10px; border: 1px solid #e0e0e0; border-radius: 8px; font-size: 13px; background: #fff; color: #1a1a1a; }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .stat-box { padding: 10px; border: 1px solid #e0e0e0; border-radius: 8px; text-align: center; background: #fff; }
+  .stat-box label { font-size: 11px; color: #999; display: block; margin-bottom: 2px; }
+  .stat-box input { width: 100%; text-align: center; border: none; background: transparent; font-size: 20px; font-weight: 500; color: #1a1a1a; padding: 0; }
+  .color-row { display: flex; gap: 12px; align-items: center; }
+  .color-row input[type="color"] { width: 36px; height: 36px; border: 1px solid #e0e0e0; border-radius: 6px; padding: 2px; background: #fff; cursor: pointer; }
+  .char-photo-area { width: 100%; border: 2px dashed #ccc; border-radius: 10px; padding: 16px; text-align: center; cursor: pointer; transition: all 0.15s; background: #fff; margin-bottom: 8px; }
+  .char-photo-area:hover { border-color: #1a1a1a; background: #f9f9f9; }
+  .char-photo-area img { max-width: 100%; border-radius: 8px; margin-top: 8px; }
+  .char-photo-hint { font-size: 11px; color: #999; margin-top: 4px; }
+
+  /* Export */
+  .export-wrap { display: flex; flex-direction: column; gap: 12px; height: 100%; }
+  .export-actions { display: flex; gap: 8px; }
+  .export-btn { padding: 8px 16px; border-radius: 8px; border: 1px solid #e0e0e0; background: #fff; color: #1a1a1a; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: background 0.15s; font-weight: 500; }
+  .export-btn:hover { background: #f5f5f5; }
+  .export-btn.primary { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+  .export-btn.primary:hover { opacity: 0.9; }
+  .export-code { flex: 1; background: #f5f5f5; border: 1px solid #e0e0e0; border-radius: 10px; padding: 14px; font-family: "SF Mono", Monaco, "Cascadia Code", monospace; font-size: 12px; line-height: 1.6; overflow: auto; white-space: pre-wrap; word-break: break-all; color: #1a1a1a; }
+
+  .svg-tile { width: 70%; height: 70%; }
+
+  /* Toast */
+  .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(20px); background: #1a1a1a; color: #fff; padding: 10px 20px; border-radius: 8px; font-size: 13px; opacity: 0; pointer-events: none; transition: opacity 0.2s, transform 0.2s; z-index: 100; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* Modal */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: none; align-items: center; justify-content: center; z-index: 200; }
+  .modal-overlay.show { display: flex; }
+  .modal { background: #fff; border-radius: 12px; padding: 20px; max-width: 500px; width: 90%; max-height: 80vh; overflow: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.15); }
+  .modal h3 { font-size: 16px; margin-bottom: 12px; }
+  .modal p { font-size: 13px; color: #666; margin-bottom: 12px; }
+  .modal-canvas { width: 100%; border-radius: 8px; border: 1px solid #e0e0e0; }
+  .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #999; }
+
+  @media (max-width: 900px) {
+    .landscape-wrap, .char-wrap { flex-direction: column; }
+    .landscape-sidebar, .char-list { width: 100%; }
+    .char-editor { flex-direction: column; }
+    .char-preview { width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<div class="rpg-app">
+  <div class="rpg-tabs">
+    <button class="rpg-tab active" data-tab="landscapes">Landscapes</button>
+    <button class="rpg-tab" data-tab="characters">Characters</button>
+    <button class="rpg-tab" data-tab="export">Export</button>
+  </div>
+
+  <!-- LANDSCAPES -->
+  <div class="rpg-panel" id="panel-landscapes">
+    <div class="landscape-wrap">
+      <div class="landscape-sidebar">
+        <div style="font-size:12px;color:#666;font-weight:500;">Tiles</div>
+        <div class="tile-palette" id="tilePalette"></div>
+        <div style="font-size:12px;color:#666;font-weight:500;margin-top:4px;">Tools</div>
+        <div class="tool-row">
+          <button class="tool-btn active" data-tool="brush">Brush</button>
+          <button class="tool-btn" data-tool="eraser">Eraser</button>
+          <button class="tool-btn" data-tool="fill">Fill</button>
+        </div>
+        <div style="font-size:12px;color:#666;font-weight:500;margin-top:4px;">Photo Import</div>
+        <div class="photo-import" id="landscapePhotoDrop">
+          <div class="photo-import-text">Drop photo here<br>or click to upload</div>
+          <input type="file" id="landscapePhotoInput" accept="image/*">
+          <img class="photo-preview" id="landscapePhotoPreview" alt="preview">
+          <div class="import-options" id="landscapeImportOpts" style="display:none;">
+            <button class="export-btn" onclick="convertPhotoToMap()">Convert to map</button>
+            <button class="export-btn" onclick="clearLandscapePhoto()">Clear</button>
+          </div>
+        </div>
+        <div style="font-size:12px;color:#666;font-weight:500;margin-top:4px;">Actions</div>
+        <button class="export-btn" style="width:100%;justify-content:center;" onclick="clearMap()">Clear map</button>
+        <button class="export-btn" style="width:100%;justify-content:center;" onclick="resizeMapPrompt()">Resize</button>
+      </div>
+      <div class="landscape-main">
+        <div class="map-settings">
+          <label>Map name</label>
+          <input type="text" id="mapName" value="Forest Realm" style="width:140px;">
+          <label>Width</label>
+          <input type="number" id="mapW" value="12" min="4" max="32" style="width:60px;">
+          <label>Height</label>
+          <input type="number" id="mapH" value="10" min="4" max="32" style="width:60px;">
+          <button class="export-btn" onclick="applyMapSize()">Apply size</button>
+        </div>
+        <div class="map-grid" id="mapGrid"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHARACTERS -->
+  <div class="rpg-panel rpg-hidden" id="panel-characters">
+    <div class="char-wrap">
+      <div class="char-list">
+        <button class="export-btn primary" style="width:100%;justify-content:center;" onclick="addCharacter()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12.0684 2.03418C12.5654 2.03421 12.9687 2.43755 12.9688 2.93457V11.0996H21.0654C21.5625 11.0996 21.9658 11.503 21.9658 12C21.9658 12.497 21.5625 12.9004 21.0654 12.9004H12.9688V21.0654C12.9687 21.5624 12.5654 21.9658 12.0684 21.9658C11.5713 21.9658 11.168 21.5625 11.168 21.0654V12.9004H2.93457C2.43751 12.9004 2.03418 12.4971 2.03418 12C2.03418 11.5029 2.43751 11.0996 2.93457 11.0996H11.168V2.93457C11.168 2.43753 11.5713 2.03418 12.0684 2.03418Z" fill="currentColor"/></svg>
+          New character
+        </button>
+        <div class="char-list-items" id="charList"></div>
+      </div>
+      <div class="char-editor" id="charEditor">
+        <div class="char-form" id="charForm"></div>
+        <div class="char-preview">
+          <div style="font-size:12px;color:#666;font-weight:500;">Preview</div>
+          <svg id="charSvg" width="160" height="200" viewBox="0 0 140 180" style="border:1px solid #e0e0e0;border-radius:10px;background:#f5f5f5;"></svg>
+          <div class="char-photo-area" id="charPhotoDrop">
+            <div style="font-size:12px;color:#666;">Drop character photo<br>or click to upload</div>
+            <input type="file" id="charPhotoInput" accept="image/*" style="display:none;">
+            <img id="charPhotoImg" style="max-width:100%;border-radius:8px;display:none;" alt="character photo">
+            <div class="char-photo-hint" id="charPhotoHint">Photo will auto-extract colors</div>
+            <div class="import-options" id="charPhotoOpts" style="display:none;">
+              <button class="export-btn" onclick="extractCharColors()">Extract colors</button>
+              <button class="export-btn" onclick="clearCharPhoto()">Clear</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- EXPORT -->
+  <div class="rpg-panel rpg-hidden" id="panel-export">
+    <div class="export-wrap">
+      <div class="export-actions">
+        <button class="export-btn primary" onclick="copyExport()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M7.5 3.09961H14.5605C15.5539 3.09968 16.51 3.47933 17.2334 4.16016L19.6729 6.45605C20.4558 7.19299 20.9003 8.22067 20.9004 9.2959V17C20.9004 19.1539 19.1539 20.9004 17 20.9004H7C4.84609 20.9004 3.09961 19.1539 3.09961 17V7C3.09961 4.84609 4.84609 3.09961 7 3.09961Z" stroke="currentColor" stroke-width="1.8" fill="none"/><path d="M8 12H16M8 15H14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          Copy JSON
+        </button>
+        <button class="export-btn" onclick="downloadExport()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M12 2.90002C12.4971 2.90002 12.9 3.30297 12.9 3.80002V12.2939L15.8081 9.38585C16.1595 9.03438 16.7294 9.03438 17.0808 9.38585C17.4323 9.73732 17.4323 10.3072 17.0808 10.6586L12.6364 15.1031C12.4676 15.2719 12.2387 15.3667 12 15.3667C11.7613 15.3667 11.5324 15.2719 11.3636 15.1031L6.91917 10.6586C6.5677 10.3072 6.5677 9.73732 6.91917 9.38585C7.27064 9.03438 7.84049 9.03438 8.19196 9.38585L11.1 12.2939V3.80002C11.1 3.30297 11.503 2.90002 12 2.90002ZM4.00001 13.5874C4.49706 13.5874 4.90001 13.9903 4.90001 14.4874V18.043C4.90001 18.2758 4.99249 18.499 5.1571 18.6636C5.32172 18.8282 5.54498 18.9207 5.77778 18.9207H18.2222C18.455 18.9207 18.6783 18.8283 18.8429 18.6636C19.0075 18.499 19.1 18.2758 19.1 18.043V14.4874C19.1 13.9903 19.5029 13.5874 20 13.5874C20.4971 13.5874 20.9 13.9903 20.9 14.4874V18.043C20.9 18.7531 20.6179 19.4342 20.1157 19.9364C19.6135 20.4386 18.9324 20.7207 18.2222 20.7207H5.77778C5.06759 20.7207 4.38649 20.4386 3.88431 19.9364C3.38213 19.4342 3.10001 18.7531 3.10001 18.043V14.4874C3.10001 13.9903 3.50295 13.5874 4.00001 13.5874Z" fill="currentColor"/></svg>
+          Download .json
+        </button>
+      </div>
+      <pre class="export-code" id="exportCode"></pre>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<!-- Hidden canvases for image processing -->
+<canvas id="processCanvas" style="display:none;"></canvas>
+
+<script>
+// ===================== STATE =====================
+const TILES = {
+  empty:   { name: 'Empty',     color: '#f5f5f5', svg: '' },
+  grass:   { name: 'Grass',     color: '#7cb342', svg: '<rect x="3" y="3" width="18" height="18" rx="3" fill="#7cb342"/><circle cx="8" cy="8" r="2" fill="#9ccc65"/><circle cx="16" cy="14" r="2.5" fill="#9ccc65"/>' },
+  water:   { name: 'Water',     color: '#42a5f5', svg: '<rect x="2" y="2" width="20" height="20" rx="4" fill="#42a5f5"/><path d="M6 14q4 2 8 0t8 0" stroke="#90caf9" stroke-width="1.5" fill="none"/>' },
+  sand:    { name: 'Sand',      color: '#ffca28', svg: '<rect x="2" y="2" width="20" height="20" rx="3" fill="#ffca28"/><circle cx="7" cy="7" r="1.2" fill="#ffe082"/><circle cx="17" cy="16" r="1.5" fill="#ffe082"/>' },
+  forest:  { name: 'Forest',    color: '#2e7d32', svg: '<rect x="2" y="2" width="20" height="20" rx="3" fill="#66bb6a"/><path d="M12 5l-4 8h8z" fill="#2e7d32"/><rect x="11" y="13" width="2" height="5" fill="#5d4037"/>' },
+  mountain:{ name:'Mountain',   color: '#78909c', svg: '<rect x="2" y="2" width="20" height="20" rx="3" fill="#b0bec5"/><path d="M12 4l-5 14h10z" fill="#78909c"/><path d="M12 7l-2 5h4z" fill="#cfd8dc"/>' },
+  path:    { name: 'Path',      color: '#d7ccc8', svg: '<rect x="2" y="2" width="20" height="20" rx="3" fill="#d7ccc8"/><rect x="8" y="2" width="8" height="20" fill="#bcaaa4"/>' },
+  wall:    { name: 'Wall',      color: '#424242', svg: '<rect x="2" y="2" width="20" height="20" rx="2" fill="#616161"/><rect x="4" y="4" width="7" height="7" fill="#757575"/><rect x="13" y="4" width="7" height="7" fill="#757575"/><rect x="4" y="13" width="7" height="7" fill="#757575"/><rect x="13" y="13" width="7" height="7" fill="#757575"/>' },
+  door:    { name: 'Door',      color: '#8d6e63', svg: '<rect x="2" y="2" width="20" height="20" rx="3" fill="#a1887f"/><rect x="7" y="5" width="10" height="14" rx="1" fill="#5d4037"/><circle cx="14" cy="12" r="1" fill="#ffca28"/>' },
+  chest:   { name: 'Chest',     color: '#ffa000', svg: '<rect x="4" y="6" width="16" height="12" rx="2" fill="#ffa000"/><rect x="4" y="6" width="16" height="6" fill="#ffca28"/><rect x="10" y="10" width="4" height="3" rx="1" fill="#5d4037"/>' },
+  spawn:   { name: 'Spawn',     color: '#ef5350', svg: '<rect x="2" y="2" width="20" height="20" rx="10" fill="#ef5350"/><circle cx="12" cy="12" r="4" fill="#ffcdd2"/>' },
+};
+
+let state = {
+  activeTab: 'landscapes',
+  map: { name: 'Forest Realm', width: 12, height: 10, tiles: [] },
+  selectedTile: 'grass',
+  tool: 'brush',
+  characters: [],
+  activeCharId: null,
+  landscapePhoto: null,
+  charPhoto: null,
+};
+
+const CLASSES = ['Warrior','Mage','Rogue','Cleric','Ranger','Paladin'];
+
+// ===================== INIT =====================
+function init() {
+  try {
+    const saved = localStorage.getItem('rpgBuilderState');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      // Don't restore photos (too big for localStorage)
+      state = { ...parsed, landscapePhoto: null, charPhoto: null };
+    }
+  } catch(e){}
+  ensureMapSize();
+  buildPalette();
+  renderMap();
+  renderCharList();
+  if (state.characters.length === 0) addCharacter();
+  else selectCharacter(state.characters[0].id);
+  updateExport();
+  setupPhotoDrops();
+
+  document.querySelectorAll('.rpg-tab').forEach(tab => {
+    tab.addEventListener('click', () => switchTab(tab.dataset.tab));
+  });
+  document.querySelectorAll('.tool-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.tool = btn.dataset.tool;
+      document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+  });
+  document.getElementById('mapName').addEventListener('input', e => {
+    state.map.name = e.target.value;
+    saveState();
+  });
+}
+
+function saveState() {
+  const saveData = { ...state, landscapePhoto: null, charPhoto: null };
+  try { localStorage.setItem('rpgBuilderState', JSON.stringify(saveData)); } catch(e){}
+  updateExport();
+}
+
+// ===================== PHOTO DROP SETUP =====================
+function setupPhotoDrops() {
+  // Landscape
+  const lDrop = document.getElementById('landscapePhotoDrop');
+  const lInput = document.getElementById('landscapePhotoInput');
+  lDrop.addEventListener('click', () => lInput.click());
+  lDrop.addEventListener('dragover', e => { e.preventDefault(); lDrop.classList.add('dragover'); });
+  lDrop.addEventListener('dragleave', () => lDrop.classList.remove('dragover'));
+  lDrop.addEventListener('drop', e => {
+    e.preventDefault(); lDrop.classList.remove('dragover');
+    if (e.dataTransfer.files[0]) handleLandscapePhoto(e.dataTransfer.files[0]);
+  });
+  lInput.addEventListener('change', e => { if (e.target.files[0]) handleLandscapePhoto(e.target.files[0]); });
+
+  // Character
+  const cDrop = document.getElementById('charPhotoDrop');
+  const cInput = document.getElementById('charPhotoInput');
+  cDrop.addEventListener('click', () => cInput.click());
+  cDrop.addEventListener('dragover', e => { e.preventDefault(); cDrop.style.borderColor = '#1a1a1a'; });
+  cDrop.addEventListener('dragleave', () => cDrop.style.borderColor = '#ccc'; });
+  cDrop.addEventListener('drop', e => {
+    e.preventDefault(); cDrop.style.borderColor = '#ccc';
+    if (e.dataTransfer.files[0]) handleCharPhoto(e.dataTransfer.files[0]);
+  });
+  cInput.addEventListener('change', e => { if (e.target.files[0]) handleCharPhoto(e.target.files[0]); });
+}
+
+// ===================== LANDSCAPE PHOTO =====================
+function handleLandscapePhoto(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    state.landscapePhoto = e.target.result;
+    const img = document.getElementById('landscapePhotoPreview');
+    img.src = state.landscapePhoto;
+    img.classList.add('show');
+    document.getElementById('landscapeImportOpts').style.display = 'flex';
+    showToast('Photo loaded. Click "Convert to map".');
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearLandscapePhoto() {
+  state.landscapePhoto = null;
+  document.getElementById('landscapePhotoPreview').classList.remove('show');
+  document.getElementById('landscapeImportOpts').style.display = 'none';
+  document.getElementById('landscapePhotoInput').value = '';
+}
+
+function convertPhotoToMap() {
+  if (!state.landscapePhoto) return;
+  const img = new Image();
+  img.onload = () => {
+    const canvas = document.getElementById('processCanvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = state.map.width;
+    canvas.height = state.map.height;
+    ctx.drawImage(img, 0, 0, state.map.width, state.map.height);
+    const data = ctx.getImageData(0, 0, state.map.width, state.map.height).data;
+
+    const tileKeys = Object.keys(TILES).filter(k => k !== 'empty');
+    const tileColors = tileKeys.map(k => ({ key: k, rgb: hexToRgb(TILES[k].color) }));
+
+    for (let y = 0; y < state.map.height; y++) {
+      for (let x = 0; x < state.map.width; x++) {
+        const i = (y * state.map.width + x) * 4;
+        const r = data[i], g = data[i+1], b = data[i+2];
+        let best = 'empty', bestDist = Infinity;
+        for (const tc of tileColors) {
+          const d = Math.sqrt((r-tc.rgb.r)**2 + (g-tc.rgb.g)**2 + (b-tc.rgb.b)**2);
+          if (d < bestDist) { bestDist = d; best = tc.key; }
+        }
+        // If very dark, maybe wall; if very light, maybe empty
+        if (r < 40 && g < 40 && b < 40) best = 'wall';
+        if (r > 230 && g > 230 && b > 230) best = 'empty';
+        state.map.tiles[y * state.map.width + x] = best;
+      }
+    }
+    renderMap();
+    saveState();
+    showToast('Map generated from photo!');
+  };
+  img.src = state.landscapePhoto;
+}
+
+// ===================== CHARACTER PHOTO =====================
+function handleCharPhoto(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    state.charPhoto = e.target.result;
+    const img = document.getElementById('charPhotoImg');
+    img.src = state.charPhoto;
+    img.style.display = 'block';
+    document.getElementById('charPhotoOpts').style.display = 'flex';
+    document.getElementById('charPhotoHint').textContent = 'Photo loaded. Click "Extract colors".';
+    showToast('Character photo loaded.');
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearCharPhoto() {
+  state.charPhoto = null;
+  document.getElementById('charPhotoImg').style.display = 'none';
+  document.getElementById('charPhotoOpts').style.display = 'none';
+  document.getElementById('charPhotoInput').value = '';
+  document.getElementById('charPhotoHint').textContent = 'Photo will auto-extract colors';
+}
+
+function extractCharColors() {
+  if (!state.charPhoto) return;
+  const char = state.characters.find(c => c.id === state.activeCharId);
+  if (!char) return;
+
+  const img = new Image();
+  img.onload = () => {
+    const canvas = document.getElementById('processCanvas');
+    const ctx = canvas.getContext('2d');
+    const w = 64, h = 64;
+    canvas.width = w; canvas.height = h;
+    ctx.drawImage(img, 0, 0, w, h);
+    const data = ctx.getImageData(0, 0, w, h).data;
+
+    // Sample regions: top = hair, center = skin, lower = outfit
+    const hairSamples = sampleRegion(data, w, h, 0.2, 0.0, 0.8, 0.3);
+    const skinSamples = sampleRegion(data, w, h, 0.25, 0.3, 0.75, 0.6);
+    const outfitSamples = sampleRegion(data, w, h, 0.2, 0.55, 0.8, 1.0);
+
+    char.colors.hair = dominantColor(hairSamples);
+    char.colors.skin = dominantColor(skinSamples);
+    char.colors.outfit = dominantColor(outfitSamples);
+
+    renderCharForm();
+    renderCharPreview();
+    saveState();
+    showToast('Colors extracted from photo!');
+  };
+  img.src = state.charPhoto;
+}
+
+function sampleRegion(data, w, h, x0, y0, x1, y1) {
+  const samples = [];
+  const sx = Math.floor(w * x0), sy = Math.floor(h * y0);
+  const ex = Math.floor(w * x1), ey = Math.floor(h * y1);
+  for (let y = sy; y < ey; y += 2) {
+    for (let x = sx; x < ex; x += 2) {
+      const i = (y * w + x) * 4;
+      samples.push({ r: data[i], g: data[i+1], b: data[i+2] });
+    }
+  }
+  return samples;
+}
+
+function dominantColor(samples) {
+  // Simple k-means-like: find most common color bucket
+  const buckets = {};
+  let best = null, bestCount = 0;
+  for (const s of samples) {
+    // Quantize to 32-level buckets
+    const key = `${Math.floor(s.r/32)}_${Math.floor(s.g/32)}_${Math.floor(s.b/32)}`;
+    buckets[key] = (buckets[key] || 0) + 1;
+    if (buckets[key] > bestCount) {
+      bestCount = buckets[key];
+      best = s;
+    }
+  }
+  if (!best) best = samples[0];
+  return rgbToHex(best.r, best.g, best.b);
+}
+
+// ===================== UTILS =====================
+function hexToRgb(hex) {
+  const n = parseInt(hex.replace('#',''), 16);
+  return { r: (n>>16)&255, g: (n>>8)&255, b: n&255 };
+}
+function rgbToHex(r,g,b) {
+  return '#' + [r,g,b].map(x => Math.max(0,Math.min(255,x)).toString(16).padStart(2,'0')).join('');
+}
+
+// ===================== TABS =====================
+function switchTab(tab) {
+  state.activeTab = tab;
+  document.querySelectorAll('.rpg-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  document.querySelectorAll('.rpg-panel').forEach(p => p.classList.toggle('rpg-hidden', !p.id.endsWith(tab)));
+  if (tab === 'export') updateExport();
+}
+
+// ===================== LANDSCAPE =====================
+function ensureMapSize() {
+  const needed = state.map.width * state.map.height;
+  while (state.map.tiles.length < needed) state.map.tiles.push('empty');
+  state.map.tiles = state.map.tiles.slice(0, needed);
+}
+
+function buildPalette() {
+  const container = document.getElementById('tilePalette');
+  container.innerHTML = '';
+  Object.entries(TILES).forEach(([key, tile]) => {
+    const btn = document.createElement('div');
+    btn.className = 'tile-btn' + (key === state.selectedTile ? ' selected' : '');
+    btn.innerHTML = `<svg class="svg-tile" viewBox="0 0 24 24">${tile.svg}</svg><span class="tlabel">${tile.name}</span>`;
+    btn.addEventListener('click', () => {
+      state.selectedTile = key;
+      document.querySelectorAll('.tile-btn').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+    });
+    container.appendChild(btn);
+  });
+}
+
+function renderMap() {
+  const grid = document.getElementById('mapGrid');
+  grid.innerHTML = '';
+  grid.style.gridTemplateColumns = `repeat(${state.map.width}, 1fr)`;
+  const size = Math.min(grid.clientWidth / state.map.width, 44);
+  grid.style.gridAutoRows = `${size}px`;
+
+  state.map.tiles.forEach((tileKey, idx) => {
+    const cell = document.createElement('div');
+    cell.className = 'map-cell';
+    const tile = TILES[tileKey] || TILES.empty;
+    cell.innerHTML = `<svg class="tile-icon" viewBox="0 0 24 24">${tile.svg}</svg>`;
+    cell.addEventListener('mousedown', e => { e.preventDefault(); paint(idx); });
+    cell.addEventListener('mouseenter', e => { if (e.buttons === 1) paint(idx); });
+    grid.appendChild(cell);
+  });
+}
+
+function paint(idx) {
+  if (state.tool === 'brush') {
+    state.map.tiles[idx] = state.selectedTile;
+  } else if (state.tool === 'eraser') {
+    state.map.tiles[idx] = 'empty';
+  } else if (state.tool === 'fill') {
+    const target = state.map.tiles[idx];
+    const fillWith = state.selectedTile;
+    if (target === fillWith) return;
+    floodFill(idx % state.map.width, Math.floor(idx / state.map.width), target, fillWith);
+  }
+  renderMap();
+  saveState();
+}
+
+function floodFill(x, y, target, fill) {
+  if (x < 0 || y < 0 || x >= state.map.width || y >= state.map.height) return;
+  const idx = y * state.map.width + x;
+  if (state.map.tiles[idx] !== target) return;
+  state.map.tiles[idx] = fill;
+  floodFill(x+1, y, target, fill);
+  floodFill(x-1, y, target, fill);
+  floodFill(x, y+1, target, fill);
+  floodFill(x, y-1, target, fill);
+}
+
+function clearMap() {
+  state.map.tiles = state.map.tiles.map(() => 'empty');
+  renderMap();
+  saveState();
+}
+
+function applyMapSize() {
+  const w = parseInt(document.getElementById('mapW').value) || 12;
+  const h = parseInt(document.getElementById('mapH').value) || 10;
+  state.map.width = Math.max(4, Math.min(32, w));
+  state.map.height = Math.max(4, Math.min(32, h));
+  document.getElementById('mapW').value = state.map.width;
+  document.getElementById('mapH').value = state.map.height;
+  ensureMapSize();
+  renderMap();
+  saveState();
+}
+
+function resizeMapPrompt() { applyMapSize(); }
+
+// ===================== CHARACTERS =====================
+function addCharacter() {
+  const id = 'c' + Date.now() + Math.random().toString(36).slice(2,6);
+  const char = {
+    id,
+    name: 'Hero ' + (state.characters.length + 1),
+    class: 'Warrior',
+    level: 1,
+    stats: { str: 10, dex: 10, int: 10, con: 10, wis: 10, cha: 10 },
+    colors: { skin: '#ffccaa', hair: '#5d4037', outfit: '#1976d2' },
+    equipment: { weapon: 'Iron Sword', armor: 'Leather Vest', accessory: 'None' },
+    skills: ['Attack','Defend'],
+  };
+  state.characters.push(char);
+  renderCharList();
+  selectCharacter(id);
+  saveState();
+}
+
+function deleteCharacter(id, ev) {
+  ev.stopPropagation();
+  state.characters = state.characters.filter(c => c.id !== id);
+  if (state.activeCharId === id) state.activeCharId = state.characters[0]?.id || null;
+  renderCharList();
+  if (state.activeCharId) selectCharacter(state.activeCharId);
+  else document.getElementById('charForm').innerHTML = '<div style="color:#666;font-size:14px;">No character selected. Create one to start.</div>';
+  saveState();
+}
+
+function selectCharacter(id) {
+  state.activeCharId = id;
+  renderCharList();
+  renderCharForm();
+  renderCharPreview();
+}
+
+function renderCharList() {
+  const container = document.getElementById('charList');
+  container.innerHTML = '';
+  state.characters.forEach(char => {
+    const row = document.createElement('div');
+    row.className = 'char-row' + (char.id === state.activeCharId ? ' active' : '');
+    row.innerHTML = `
+      <div>
+        <div class="char-row-name">${escapeHtml(char.name)}</div>
+        <div class="char-row-meta">Lv.${char.level} ${char.class}</div>
+      </div>
+      <div class="char-row-actions">
+        <button style="background:none;border:none;cursor:pointer;color:#c62828;padding:4px;" onclick="deleteCharacter('${char.id}',event)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M8.10001 3C8.10001 2.50294 8.50295 2.1 9.00001 2.1H15C15.4971 2.1 15.9 2.50294 15.9 3C15.9 3.49706 15.4971 3.9 15 3.9H9.00001C8.50295 3.9 8.10001 3.49706 8.10001 3Z" fill="currentColor"/><path d="M10 15.9C9.50295 15.9 9.10001 15.4971 9.10001 15L9.10001 10C9.10001 9.50294 9.50295 9.1 10 9.1C10.4971 9.1 10.9 9.50294 10.9 10L10.9 15C10.9 15.4971 10.4971 15.9 10 15.9Z" fill="currentColor"/><path d="M13.1 15C13.1 15.4971 13.5029 15.9 14 15.9C14.4971 15.9 14.9 15.4971 14.9 15L14.9 10C14.9 9.50294 14.4971 9.1 14 9.1C13.5029 9.1 13.1 9.50294 13.1 10V15Z" fill="currentColor"/><path fill-rule="evenodd" clip-rule="evenodd" d="M2.10001 6C2.10001 5.50294 2.50295 5.1 3.00001 5.1H4.99152C4.99785 5.09993 5.00417 5.09993 5.01048 5.1H18.9895C18.9958 5.09993 19.0021 5.09993 19.0085 5.1H21C21.4971 5.1 21.9 5.50294 21.9 6C21.9 6.49706 21.4971 6.9 21 6.9H19.8281L18.8448 18.6993C18.7412 19.9432 17.7013 20.9 16.4531 20.9H7.54686C6.29865 20.9 5.25881 19.9432 5.15515 18.6993L4.17188 6.9H3.00001C2.50295 6.9 2.10001 6.49706 2.10001 6ZM5.97811 6.9L18.0219 6.9L17.0511 18.5498C17.0251 18.8608 16.7652 19.1 16.4531 19.1H7.54686C7.23481 19.1 6.97485 18.8608 6.94893 18.5498L5.97811 6.9Z" fill="currentColor"/></svg>
+        </button>
+      </div>`;
+    row.addEventListener('click', () => selectCharacter(char.id));
+    container.appendChild(row);
+  });
+}
+
+function renderCharForm() {
+  const char = state.characters.find(c => c.id === state.activeCharId);
+  const form = document.getElementById('charForm');
+  if (!char) { form.innerHTML = ''; return; }
+  form.innerHTML = `
+    <div class="field-row">
+      <div class="field"><label>Name</label><input id="cName" value="${escapeHtml(char.name)}"></div>
+      <div class="field"><label>Class</label>
+        <select id="cClass">${CLASSES.map(c => `<option value="${c}" ${char.class===c?'selected':''}>${c}</option>`).join('')}</select>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Level</label><input id="cLevel" type="number" min="1" max="99" value="${char.level}"></div>
+      <div class="field"><label>Weapon</label><input id="cWeapon" value="${escapeHtml(char.equipment.weapon)}"></div>
+    </div>
+    <div class="field"><label>Stats</label>
+      <div class="stat-grid">
+        ${Object.entries(char.stats).map(([k,v]) => `
+          <div class="stat-box"><label>${k.toUpperCase()}</label><input type="number" min="1" max="99" data-stat="${k}" value="${v}"></div>
+        `).join('')}
+      </div>
+    </div>
+    <div class="field"><label>Appearance colors</label>
+      <div class="color-row">
+        <div><input type="color" id="cSkin" value="${char.colors.skin}"><span style="font-size:11px;color:#999;">Skin</span></div>
+        <div><input type="color" id="cHair" value="${char.colors.hair}"><span style="font-size:11px;color:#999;">Hair</span></div>
+        <div><input type="color" id="cOutfit" value="${char.colors.outfit}"><span style="font-size:11px;color:#999;">Outfit</span></div>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Armor</label><input id="cArmor" value="${escapeHtml(char.equipment.armor)}"></div>
+      <div class="field"><label>Accessory</label><input id="cAccessory" value="${escapeHtml(char.equipment.accessory)}"></div>
+    </div>
+    <div class="field"><label>Skills (comma separated)</label><input id="cSkills" value="${escapeHtml(char.skills.join(', '))}"></div>
+  `;
+
+  const bind = (id, path, fn) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('input', () => {
+      if (fn) fn(el.value);
+      else setPath(char, path, el.value);
+      renderCharPreview();
+      saveState();
+    });
+  };
+  bind('cName', 'name');
+  bind('cClass', 'class');
+  bind('cLevel', 'level', v => char.level = Math.max(1, Math.min(99, parseInt(v)||1)));
+  bind('cWeapon', 'equipment.weapon');
+  bind('cArmor', 'equipment.armor');
+  bind('cAccessory', 'equipment.accessory');
+  bind('cSkills', 'skills', v => char.skills = v.split(',').map(s=>s.trim()).filter(Boolean));
+  bind('cSkin', 'colors.skin');
+  bind('cHair', 'colors.hair');
+  bind('cOutfit', 'colors.outfit');
+
+  document.querySelectorAll('.stat-box input').forEach(inp => {
+    inp.addEventListener('input', () => {
+      const k = inp.dataset.stat;
+      char.stats[k] = Math.max(1, Math.min(99, parseInt(inp.value)||1));
+      renderCharPreview();
+      saveState();
+    });
+  });
+}
+
+function setPath(obj, path, val) {
+  const keys = path.split('.');
+  let cur = obj;
+  for (let i=0;i<keys.length-1;i++) cur = cur[keys[i]];
+  cur[keys[keys.length-1]] = val;
+}
+
+function renderCharPreview() {
+  const char = state.characters.find(c => c.id === state.activeCharId);
+  const svg = document.getElementById('charSvg');
+  if (!char) { svg.innerHTML = ''; return; }
+  const c = char.colors;
+  svg.innerHTML = `
+    <defs>
+      <linearGradient id="grad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${c.outfit}"/><stop offset="100%" stop-color="${darken(c.outfit,20)}"/></linearGradient>
+    </defs>
+    <ellipse cx="70" cy="165" rx="28" ry="6" fill="rgba(0,0,0,0.12)"/>
+    <path d="M50 160 L50 110 Q50 95 70 95 Q90 95 90 110 L90 160 Z" fill="url(#grad)"/>
+    <circle cx="70" cy="72" r="22" fill="${c.skin}"/>
+    <path d="M48 68 Q48 45 70 45 Q92 45 92 68 Q92 55 70 55 Q48 55 48 68" fill="${c.hair}"/>
+    <circle cx="63" cy="72" r="2.5" fill="#333"/>
+    <circle cx="77" cy="72" r="2.5" fill="#333"/>
+    <path d="M65 82 Q70 86 75 82" stroke="#333" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+    <rect x="92" y="100" width="5" height="45" rx="2" fill="#90a4ae"/>
+    <rect x="88" y="100" width="13" height="4" rx="1" fill="#546e7a"/>
+  `;
+}
+
+function darken(hex, amt) {
+  const num = parseInt(hex.replace('#',''),16);
+  const r = Math.max(0, (num>>16)-amt);
+  const g = Math.max(0, ((num>>8)&0x00FF)-amt);
+  const b = Math.max(0, (num&0x0000FF)-amt);
+  return '#' + ((1<<24)+(r<<16)+(g<<8)+b).toString(16).slice(1);
+}
+
+// ===================== EXPORT =====================
+function updateExport() {
+  const payload = {
+    version: '1.0',
+    generated: new Date().toISOString(),
+    maps: [{
+      id: 'map_' + state.map.name.toLowerCase().replace(/\s+/g,'_'),
+      name: state.map.name,
+      width: state.map.width,
+      height: state.map.height,
+      tileset: Object.fromEntries(Object.entries(TILES).map(([k,v])=>[k,{name:v.name,color:v.color}])),
+      layers: [{ name: 'ground', tiles: state.map.tiles }],
+    }],
+    characters: state.characters.map(c => ({
+      id: c.id,
+      name: c.name,
+      class: c.class,
+      level: c.level,
+      stats: c.stats,
+      colors: c.colors,
+      equipment: c.equipment,
+      skills: c.skills,
+    })),
+  };
+  document.getElementById('exportCode').textContent = JSON.stringify(payload, null, 2);
+}
+
+function copyExport() {
+  const text = document.getElementById('exportCode').textContent;
+  navigator.clipboard.writeText(text).then(() => showToast('Copied to clipboard!'));
+}
+
+function downloadExport() {
+  const text = document.getElementById('exportCode').textContent;
+  const blob = new Blob([text], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'rpg_game_data.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('Downloaded rpg_game_data.json');
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+function escapeHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// Start
+init();
+</script>
+
+</body>
+</html>
