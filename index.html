@@ -2,945 +2,644 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>Everwyn — an endless town</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Summer Afternoon — Your Terrain</title>
 <style>
-  :root{
-    --ink:#241b2e;
-    --parch:#efe3c8;
-    --moss:#6f8f5a;
-    --ember:#d98243;
-    --arcane:#8f7ad6;
-  }
   *{margin:0;padding:0;box-sizing:border-box}
-  html,body{height:100%;overflow:hidden;background:#9fd0ea;}
-  body{
-    font-family:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
-    color:#26414f;
-    -webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;
-  }
-  #scene{position:fixed;inset:0;display:block;cursor:grab;}
-  #scene.dragging{cursor:grabbing;}
+  html,body{width:100%;height:100%;overflow:hidden;background:#f4d9a4;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased}
+  canvas{display:block}
 
-  /* --- vignette + parchment grain over the whole view --- */
-  #veil{
-    position:fixed;inset:0;pointer-events:none;
-    box-shadow:inset 0 0 20vmax rgba(40,70,90,.22);
-    mix-blend-mode:multiply;
-  }
+  #ui{position:fixed;inset:0;pointer-events:none;z-index:10}
 
-  /* --- loading plate --- */
-  #plate{
-    position:fixed;inset:0;display:grid;place-items:center;
-    background:radial-gradient(120% 90% at 50% 38%,#cfe8f5 0%,#8fc0dc 72%);
-    z-index:10;transition:opacity .9s ease .2s;
-  }
-  #plate.gone{opacity:0;pointer-events:none}
-  .sigil{width:64px;height:64px;margin:0 auto 22px;position:relative}
-  .sigil i{
-    position:absolute;inset:0;border:1.5px solid var(--arcane);border-radius:50%;
-    opacity:.5;animation:spin 5.5s linear infinite;
-  }
-  .sigil i:nth-child(2){inset:12px;border-color:var(--ember);animation-duration:3.4s;animation-direction:reverse}
-  .sigil i:nth-child(3){inset:24px;border-color:var(--moss);animation-duration:7s}
-  @keyframes spin{to{transform:rotate(360deg)}}
-  #plate p{text-align:center;letter-spacing:.42em;text-transform:uppercase;font-size:11px;opacity:.72}
-  #plate h1{
-    text-align:center;font-size:clamp(30px,7vw,58px);font-weight:400;
-    letter-spacing:.14em;margin-bottom:10px;color:#2f4a5c;
-  }
-  #plate p{color:#3d5a6c}
+  #loader{position:fixed;inset:0;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;z-index:50;
+    background:linear-gradient(170deg,#89c5e8 0%,#cfe3e4 42%,#f6d9a8 100%);
+    transition:opacity .9s ease}
+  #loader.gone{opacity:0;pointer-events:none}
+  .sun{width:64px;height:64px;border-radius:50%;
+    background:radial-gradient(circle,#fff6d8 0%,#ffd98a 55%,rgba(255,199,110,0) 72%);
+    animation:pulse 2.4s ease-in-out infinite}
+  @keyframes pulse{0%,100%{transform:scale(1);opacity:.85}50%{transform:scale(1.18);opacity:1}}
+  #status{margin-top:22px;font-size:13px;letter-spacing:.14em;
+    text-transform:uppercase;color:#5c4a35;font-weight:600}
+  #sub{margin-top:8px;font-size:12px;color:#7d6b54;max-width:320px;text-align:center;line-height:1.6}
 
-  /* --- corner plaque --- */
-  #plaque{
-    position:fixed;left:20px;bottom:18px;z-index:5;pointer-events:none;
-    line-height:1.6;color:#26414f;text-shadow:0 1px 2px rgba(255,255,255,.55);
-  }
-  #plaque .name{font-size:19px;letter-spacing:.22em;text-transform:uppercase}
-  #plaque .hint{font-size:11px;letter-spacing:.14em;opacity:.6;text-transform:uppercase}
-  #ward{
-    position:fixed;right:20px;bottom:18px;z-index:5;text-align:right;
-    font-size:11px;letter-spacing:.14em;opacity:.7;text-transform:uppercase;
-    color:#26414f;text-shadow:0 1px 2px rgba(255,255,255,.55);pointer-events:none;
-  }
-  #ward b{display:block;font-size:17px;font-weight:400;letter-spacing:.1em;opacity:.95}
-  @media (max-width:520px){ #ward{display:none} }
+  #enable{margin-top:26px;pointer-events:auto;cursor:pointer;border:none;
+    padding:13px 30px;border-radius:999px;background:#5c4a35;color:#fdf3df;
+    font-size:12px;letter-spacing:.14em;text-transform:uppercase;font-weight:600;
+    transition:transform .2s ease,background .2s ease}
+  #enable:hover{transform:translateY(-2px);background:#463829}
+  #enable.hide{display:none}
+
+  #place{position:fixed;top:24px;left:26px;color:#5c4a35;z-index:11;
+    text-shadow:0 1px 0 rgba(255,255,255,.4)}
+  #place h1{font-size:15px;font-weight:700;letter-spacing:.03em}
+  #place p{font-size:11px;opacity:.72;margin-top:3px;letter-spacing:.06em}
+
+  #hint{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+    color:#5c4a35;font-size:11px;letter-spacing:.13em;text-transform:uppercase;
+    opacity:.6;z-index:11;text-align:center;line-height:1.9}
+
+  #panel{position:fixed;top:22px;right:22px;z-index:12;pointer-events:auto;
+    background:rgba(255,250,240,.72);backdrop-filter:blur(14px);
+    border:1px solid rgba(255,255,255,.6);border-radius:14px;padding:14px 16px;
+    width:212px;box-shadow:0 8px 26px rgba(120,90,50,.14)}
+  #panel label{display:block;font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+    color:#7d6b54;margin-bottom:5px;font-weight:600}
+  #panel input[type=range]{width:100%;margin-bottom:13px;accent-color:#c98b4b}
+  #panel .row{display:flex;gap:7px;margin-top:4px}
+  #panel button{flex:1;pointer-events:auto;cursor:pointer;border:none;border-radius:8px;
+    padding:8px 4px;background:#e8d3ac;color:#5c4a35;font-size:10px;font-weight:600;
+    letter-spacing:.07em;text-transform:uppercase}
+  #panel button:hover{background:#dcc399}
+  #toggle{position:fixed;top:22px;right:22px;z-index:13;pointer-events:auto;cursor:pointer;
+    width:34px;height:34px;border:none;border-radius:10px;background:rgba(255,250,240,.72);
+    backdrop-filter:blur(14px);color:#5c4a35;font-size:15px;display:none}
 </style>
 </head>
 <body>
 
-<canvas id="scene"></canvas>
-<div id="veil"></div>
-
-<div id="plaque">
-  <div class="name">Everwyn</div>
-  <div class="hint">Drag to wander &middot; scroll to rise</div>
+<div id="loader">
+  <div class="sun"></div>
+  <div id="status">Waking the afternoon</div>
+  <div id="sub">This uses your location to sculpt the real elevation around you into a world.</div>
+  <button id="enable">Use my location</button>
 </div>
-<div id="ward"><b>∞</b>leagues walked</div>
 
-<div id="plate">
-  <div>
-    <div class="sigil"><i></i><i></i><i></i></div>
-    <h1>Everwyn</h1>
-    <p>raising the rooftops…</p>
+<div id="place" style="display:none">
+  <h1 id="placeName">—</h1>
+  <p id="placeMeta">—</p>
+</div>
+
+<button id="toggle">☰</button>
+<div id="panel" style="display:none">
+  <label>Elevation <span id="vExag"></span></label>
+  <input id="exag" type="range" min="0.4" max="4" step="0.05" value="1.6">
+  <label>Grass density <span id="vGrass"></span></label>
+  <input id="grass" type="range" min="0" max="100" step="1" value="60">
+  <label>Time of day</label>
+  <input id="tod" type="range" min="0" max="100" step="1" value="72">
+  <div class="row">
+    <button id="btnTop">Top-down</button>
+    <button id="btnLow">Ground</button>
   </div>
 </div>
 
-<script>
-/* Load three.js UMD with fallbacks: r128 is the last widely-mirrored non-module
-   build, and any one CDN may be blocked, so try several in order. */
-(function(){
-  var SRC = [
-    "https://cdnjs.cloudflare.com/ajax/libs/three/r128/three.min.js",
-    "https://unpkg.com/three@0.128.0/build/three.min.js",
-    "https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js",
-    "https://cdn.skypack.dev/three@0.128.0/build/three.min.js"
-  ];
-  var i = 0;
-  function next(){
-    if (i >= SRC.length) { window.__everwynStart(); return; }
-    var el = document.createElement('script');
-    el.src = SRC[i++];
-    el.onload  = function(){ window.__everwynStart(); };
-    el.onerror = next;
-    document.head.appendChild(el);
-  }
-  next();
-})();
+<div id="hint" style="display:none">
+  Move mouse to look · Scroll to zoom · Drag to orbit<br>WASD or arrows to walk
+</div>
+
+<script type="importmap">
+{"imports":{"three":"https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.module.js"}}
 </script>
 
-<script>
-window.__everwynStart = function(){
-window.__everwynStart = function(){};   // only ever run once
-if (typeof THREE === 'undefined') {
-  var pl = document.getElementById('plate');
-  pl.innerHTML = '<div style="text-align:center;padding:24px;max-width:34ch">' +
-    '<h1 style="font-size:26px;letter-spacing:.12em;margin-bottom:14px;color:#efe3c8">Everwyn didn\u2019t load</h1>' +
-    '<p style="letter-spacing:.08em;text-transform:none;font-size:13px;line-height:1.7;opacity:.75">' +
-    'The 3D library couldn\u2019t be reached. Open this file in Safari or Chrome, or check the connection, then reload.</p></div>';
-  return;
+<script type="module">
+import * as THREE from 'three';
+
+/* ============================================================
+   CONFIG
+   ============================================================ */
+const GRID     = 128;          // terrain vertices per side
+const SPAN_KM  = 6;            // real-world square captured, in km
+const WORLD    = 900;          // scene units across
+const SEG      = WORLD / GRID;
+
+const $ = id => document.getElementById(id);
+const statusEl = $('status'), subEl = $('sub');
+
+/* ============================================================
+   1. LOCATION
+   ============================================================ */
+function getLocation(){
+  return new Promise(resolve=>{
+    if(!navigator.geolocation) return resolve(null);
+    navigator.geolocation.getCurrentPosition(
+      p => resolve({lat:p.coords.latitude, lon:p.coords.longitude}),
+      () => resolve(null),
+      {enableHighAccuracy:true, timeout:10000, maximumAge:600000}
+    );
+  });
+}
+
+async function ipFallback(){
+  try{
+    const r = await fetch('https://ipapi.co/json/');
+    const j = await r.json();
+    if(j.latitude) return {lat:j.latitude, lon:j.longitude, label:`${j.city}, ${j.region_code}`};
+  }catch(e){}
+  return null;
+}
+
+async function reverseGeocode(lat,lon){
+  try{
+    const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=12`);
+    const j = await r.json();
+    const a = j.address||{};
+    const city = a.city||a.town||a.village||a.hamlet||a.suburb||a.county||'';
+    const region = a.state||a.country||'';
+    return [city,region].filter(Boolean).join(', ');
+  }catch(e){ return ''; }
 }
 
 /* ============================================================
-   EVERWYN — an endless medieval town
-   Infinite scroll via a wrapping grid of tiles: the town is a
-   fixed pool of blocks that leapfrog around the camera, so you
-   can wander forever without allocating anything new.
+   2. ELEVATION  (Open-Meteo — free, no key, batched)
    ============================================================ */
+const DEG_LAT = 111.32;                                  // km per degree lat
 
-const TILE   = 12;      // world units per town block
-const GRID   = 11;      // tiles across the pool (odd = centered)
-const HALF   = (GRID - 1) / 2;
-const SPAN   = GRID * TILE;
+async function fetchElevation(lat, lon){
+  const N = 48;                                          // sample grid (48x48 = 2304 pts)
+  const dLat = (SPAN_KM/DEG_LAT);
+  const dLon = (SPAN_KM/(DEG_LAT*Math.cos(lat*Math.PI/180)));
+  const lats=[], lons=[];
+  for(let j=0;j<N;j++) for(let i=0;i<N;i++){
+    lats.push((lat - dLat/2 + dLat*(j/(N-1))).toFixed(5));
+    lons.push((lon - dLon/2 + dLon*(i/(N-1))).toFixed(5));
+  }
 
-const PALETTE = {
-  sky      : 0x9fd0ea,
-  fog      : 0xc6e2f0,
-  grass    : 0x7aa855,
-  grassDim : 0x6d9a4c,
-  road     : 0xd8c9a6,
-  roadEdge : 0xbfae8a,
-  water    : 0x6fb6d6,
-  plaster  : [0xe8dcc0, 0xdccBa4, 0xe3d3b2, 0xd6c6a8],
-  timber   : [0x4a3527, 0x3b2a1e, 0x55402c],
-  roofRed  : [0x8c4436, 0x7a3a2d, 0x9c5140],
-  roofSlate: [0x4d5566, 0x3f4757, 0x59617a],
-  thatch   : [0xb9964f, 0xa8853f, 0xc9a75c],
-  stone    : [0x8a8578, 0x7b766a, 0x99937f],
-  wood     : 0x6b4f35,
-  leafA    : 0x3f6b3a,
-  leafB    : 0x4f7d43,
-  leafC    : 0x355c36,
-  magic    : 0x9d86ff,
-  ember    : 0xffab5e,
-};
-
-const pick = (arr, r) => arr[Math.floor(r * arr.length) % arr.length];
-
-/* ---------- deterministic hash so every tile is stable ---------- */
-function hash(x, y, s = 0) {
-  let h = x * 374761393 + y * 668265263 + s * 2246822519;
-  h = (h ^ (h >>> 13)) * 1274126177;
-  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
-}
-function rngAt(x, y) {
-  let i = 0;
-  return () => hash(x, y, ++i);
+  const CH = 100, out = new Float32Array(N*N);
+  for(let s=0; s<lats.length; s+=CH){
+    const la = lats.slice(s,s+CH).join(','), lo = lons.slice(s,s+CH).join(',');
+    const r = await fetch(`https://api.open-meteo.com/v1/elevation?latitude=${la}&longitude=${lo}`);
+    if(!r.ok) throw new Error('elevation http '+r.status);
+    const j = await r.json();
+    j.elevation.forEach((v,k)=> out[s+k] = v);
+    statusEl.textContent = `Reading the land ${Math.min(100,Math.round((s+CH)/lats.length*100))}%`;
+  }
+  return {data:out, n:N};
 }
 
-/* ================= renderer / scene ================= */
-const canvas   = document.getElementById('scene');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias:true });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+/* procedural fallback — ridged multifractal, still pretty */
+function proceduralElevation(){
+  const N=48, out=new Float32Array(N*N);
+  const h=(x,y)=>{const s=Math.sin(x*12.9898+y*78.233)*43758.5453;return s-Math.floor(s);};
+  const noise=(x,y)=>{
+    const xi=Math.floor(x),yi=Math.floor(y),xf=x-xi,yf=y-yi;
+    const u=xf*xf*(3-2*xf), v=yf*yf*(3-2*yf);
+    return (h(xi,yi)*(1-u)+h(xi+1,yi)*u)*(1-v)+(h(xi,yi+1)*(1-u)+h(xi+1,yi+1)*u)*v;
+  };
+  for(let j=0;j<N;j++)for(let i=0;i<N;i++){
+    let a=1,f=.055,v=0;
+    for(let o=0;o<5;o++){ v+=noise(i*f,j*f)*a; a*=.5; f*=2.05; }
+    out[j*N+i]=v*260;
+  }
+  return {data:out,n:N};
+}
+
+/* bicubic-ish smooth upsample from N×N samples to GRID+1 resolution */
+function sample(el, u, v){
+  const n=el.n;
+  const x=Math.min(n-1.001,Math.max(0,u*(n-1)));
+  const y=Math.min(n-1.001,Math.max(0,v*(n-1)));
+  const xi=Math.floor(x), yi=Math.floor(y), xf=x-xi, yf=y-yi;
+  const sx=xf*xf*(3-2*xf), sy=yf*yf*(3-2*yf);
+  const g=(a,b)=>el.data[Math.min(n-1,b)*n+Math.min(n-1,a)];
+  return (g(xi,yi)*(1-sx)+g(xi+1,yi)*sx)*(1-sy)+(g(xi,yi+1)*(1-sx)+g(xi+1,yi+1)*sx)*sy;
+}
+
+/* ============================================================
+   3. SCENE
+   ============================================================ */
+const scene = new THREE.Scene();
+const renderer = new THREE.WebGLRenderer({antialias:true, powerPreference:'high-performance'});
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-if ('outputColorSpace' in renderer && THREE.SRGBColorSpace) renderer.outputColorSpace = THREE.SRGBColorSpace;
-else if (THREE.sRGBEncoding) renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+document.body.appendChild(renderer.domElement);
 
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(PALETTE.sky);
-scene.fog = new THREE.Fog(PALETTE.fog, 62, 150);
+const camera = new THREE.PerspectiveCamera(52, innerWidth/innerHeight, 1, 6000);
 
-/* isometric-ish camera, like the original's fixed 3/4 view */
-let aspect = innerWidth / innerHeight;
-let zoom   = 15;
-const camera = new THREE.OrthographicCamera(-zoom*aspect, zoom*aspect, zoom, -zoom, 0.1, 400);
-camera.position.set(60, 58, 60);
-camera.lookAt(0, 0, 0);
+/* --- sky dome: vertical gradient, warm at horizon --- */
+const skyMat = new THREE.ShaderMaterial({
+  side:THREE.BackSide, depthWrite:false,
+  uniforms:{ top:{value:new THREE.Color(0x6fb4e0)},
+             mid:{value:new THREE.Color(0xcfe4e2)},
+             bot:{value:new THREE.Color(0xf9dca6)} },
+  vertexShader:`varying vec3 wp; void main(){ wp=position;
+    gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
+  fragmentShader:`varying vec3 wp; uniform vec3 top,mid,bot;
+    void main(){ float h=normalize(wp).y;
+      vec3 c = h>0.08 ? mix(mid,top,smoothstep(0.08,0.75,h))
+                      : mix(bot,mid,smoothstep(-0.25,0.08,h));
+      gl_FragColor=vec4(c,1.);}`
+});
+scene.add(new THREE.Mesh(new THREE.SphereGeometry(3000,32,20), skyMat));
 
-/* ================= light ================= */
-scene.add(new THREE.HemisphereLight(0xdcefff, 0x6f7a4e, 1.15));
-
-const sun = new THREE.DirectionalLight(0xfff6e2, 1.85);
-sun.position.set(44, 92, 30);
+/* --- light --- */
+const sun = new THREE.DirectionalLight(0xfff0cf, 2.5);
+sun.position.set(-600, 620, 420);
 sun.castShadow = true;
-sun.shadow.mapSize.set(2048, 2048);
-const s = 62;
-Object.assign(sun.shadow.camera, { left:-s, right:s, top:s, bottom:-s, near:1, far:190 });
-sun.shadow.camera.updateProjectionMatrix();
-sun.shadow.bias = -0.0012;
-sun.shadow.normalBias = 0.03;
-scene.add(sun, sun.target);
+sun.shadow.mapSize.set(2048,2048);
+const sc = sun.shadow.camera;
+sc.left=-700; sc.right=700; sc.top=700; sc.bottom=-700; sc.near=1; sc.far=2200;
+scene.add(sun);
+scene.add(new THREE.HemisphereLight(0xbfe0f5, 0xdcbb87, 1.0));
+scene.add(new THREE.AmbientLight(0xffe9c9, 0.35));
+scene.fog = new THREE.FogExp2(0xe9dcc0, 0.00075);
 
-const fill = new THREE.DirectionalLight(0xbfd8f0, 0.45);
-fill.position.set(-40, 34, -30);
-scene.add(fill);
+/* ============================================================
+   4. TERRAIN
+   ============================================================ */
+let terrain, heights, minH=0, maxH=1, exag = 1.6;
+let grassMesh, grassBase;
 
-/* ================= shared geometry & material cache ================= */
-const G = {
-  box  : new THREE.BoxGeometry(1,1,1),
-  cyl  : new THREE.CylinderGeometry(0.5,0.5,1,10),
-  cone : new THREE.ConeGeometry(0.5,1,10),
-  cone6: new THREE.ConeGeometry(0.5,1,6),
-  ico  : new THREE.IcosahedronGeometry(0.5,0),
-  ico1 : new THREE.IcosahedronGeometry(0.5,1),
-  sph  : new THREE.SphereGeometry(0.5,12,10),
-  plane: new THREE.PlaneGeometry(1,1),
-  tor  : new THREE.TorusGeometry(0.5,0.12,6,16),
+function buildTerrain(el){
+  const geo = new THREE.PlaneGeometry(WORLD, WORLD, GRID, GRID);
+  geo.rotateX(-Math.PI/2);
+  const pos = geo.attributes.position;
+
+  // raw heights
+  const raw = new Float32Array(pos.count);
+  for(let i=0;i<pos.count;i++){
+    const u = (pos.getX(i)+WORLD/2)/WORLD;
+    const v = (pos.getZ(i)+WORLD/2)/WORLD;
+    raw[i] = sample(el,u,v);
+  }
+  minH = Math.min(...raw); maxH = Math.max(...raw);
+  const range = Math.max(maxH-minH, 1);
+
+  // normalize -> scene units. flat regions get a gentle synthetic roll
+  // so coastal / plains users still see terrain instead of a pancake.
+  const flat = range < 25;
+  heights = new Float32Array(pos.count);
+  for(let i=0;i<pos.count;i++){
+    const x = pos.getX(i), z = pos.getZ(i);
+    let h = ((raw[i]-minH)/range) * 150;
+    if(flat){
+      h += Math.sin(x*0.011)*Math.cos(z*0.009)*16
+         + Math.sin(x*0.031+z*0.017)*6;
+    }
+    heights[i] = h;
+  }
+
+  applyExag();
+
+  /* vertex colors: sand -> meadow -> grass -> rock -> pale peak */
+  const col = new Float32Array(pos.count*3);
+  const C = [
+    [0.00, new THREE.Color(0xd8c48c)],
+    [0.14, new THREE.Color(0xbfc985)],
+    [0.34, new THREE.Color(0x8fb46a)],
+    [0.56, new THREE.Color(0x6f9a58)],
+    [0.76, new THREE.Color(0x9b8f72)],
+    [1.00, new THREE.Color(0xe6e2d4)],
+  ];
+  const tmp = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const t = THREE.MathUtils.clamp(heights[i]/(150*exag),0,1);
+    let a=C[0], b=C[C.length-1];
+    for(let k=0;k<C.length-1;k++) if(t>=C[k][0]&&t<=C[k+1][0]){a=C[k];b=C[k+1];break;}
+    const f=(t-a[0])/Math.max(b[0]-a[0],1e-5);
+    tmp.copy(a[1]).lerp(b[1],f);
+    // subtle per-vertex variation so flat shading reads organic
+    const j = 0.94 + ((i*2654435761)%1000)/1000*0.12;
+    col[i*3]=tmp.r*j; col[i*3+1]=tmp.g*j; col[i*3+2]=tmp.b*j;
+  }
+  geo.setAttribute('color', new THREE.BufferAttribute(col,3));
+
+  const mat = new THREE.MeshStandardMaterial({
+    vertexColors:true, flatShading:true, roughness:0.94, metalness:0
+  });
+  terrain = new THREE.Mesh(geo, mat);
+  terrain.receiveShadow = true; terrain.castShadow = true;
+  scene.add(terrain);
+
+  buildGrass();
+  buildRocks();
+}
+
+function applyExag(){
+  if(!terrain && !heights) return;
+  const geo = terrain ? terrain.geometry : null;
+  if(!geo) return;
+  const pos = geo.attributes.position;
+  for(let i=0;i<pos.count;i++) pos.setY(i, heights[i]*exag);
+  pos.needsUpdate = true;
+  geo.computeVertexNormals();
+  geo.computeBoundingSphere();
+}
+
+/* height lookup by world x,z — bilinear over the vertex grid */
+function heightAt(x,z){
+  if(!heights) return 0;
+  const gx = (x + WORLD/2)/SEG, gz = (z + WORLD/2)/SEG;
+  const xi = Math.floor(gx), zi = Math.floor(gz);
+  if(xi<0||zi<0||xi>=GRID||zi>=GRID) return 0;
+  const xf=gx-xi, zf=gz-zi, W=GRID+1;
+  const g=(a,b)=>heights[b*W+a]*exag;
+  return (g(xi,zi)*(1-xf)+g(xi+1,zi)*xf)*(1-zf)
+       + (g(xi,zi+1)*(1-xf)+g(xi+1,zi+1)*xf)*zf;
+}
+
+function slopeAt(x,z){
+  const d=6;
+  const dx=heightAt(x+d,z)-heightAt(x-d,z);
+  const dz=heightAt(x,z+d)-heightAt(x,z-d);
+  return Math.sqrt(dx*dx+dz*dz)/(2*d);
+}
+
+/* ============================================================
+   5. GRASS — instanced blades that sway
+   ============================================================ */
+const MAX_GRASS = 26000;
+
+function buildGrass(){
+  const blade = new THREE.BufferGeometry();
+  const w=1.1,h=7;
+  blade.setAttribute('position', new THREE.Float32BufferAttribute([
+    -w,0,0,  w,0,0,  w*0.55,h*0.55,0,
+    -w,0,0,  w*0.55,h*0.55,0, -w*0.55,h*0.55,0,
+    -w*0.55,h*0.55,0, w*0.55,h*0.55,0, 0,h,0
+  ],3));
+  blade.computeVertexNormals();
+
+  const mat = new THREE.MeshStandardMaterial({
+    color:0x86ad5c, side:THREE.DoubleSide, roughness:1, flatShading:true
+  });
+  mat.onBeforeCompile = s=>{
+    s.uniforms.uT = grassTime;
+    s.vertexShader = 'uniform float uT;\n' + s.vertexShader.replace(
+      '#include <begin_vertex>',
+      `#include <begin_vertex>
+       float sway = transformed.y * 0.07;
+       vec4 ip = instanceMatrix[3];
+       transformed.x += sin(uT*1.4 + ip.x*0.05 + ip.z*0.04) * sway * 3.0;
+       transformed.z += cos(uT*1.1 + ip.z*0.06) * sway * 2.0;`
+    );
+  };
+
+  grassMesh = new THREE.InstancedMesh(blade, mat, MAX_GRASS);
+  grassMesh.castShadow = true;
+  grassMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+
+  const d = new THREE.Object3D();
+  grassBase = [];
+  let n=0, guard=0;
+  while(n<MAX_GRASS && guard<MAX_GRASS*6){
+    guard++;
+    const x=(Math.random()-0.5)*WORLD*0.96;
+    const z=(Math.random()-0.5)*WORLD*0.96;
+    const y=heightAt(x,z);
+    const t=y/(150*exag);
+    if(t>0.72 || slopeAt(x,z)>0.9) continue;          // no grass on cliffs/peaks
+    const s=0.7+Math.random()*1.5;
+    d.position.set(x,y,z);
+    d.rotation.set(0, Math.random()*Math.PI*2, (Math.random()-0.5)*0.25);
+    d.scale.set(s,s*(0.8+Math.random()*0.9),s);
+    d.updateMatrix();
+    grassMesh.setMatrixAt(n, d.matrix);
+    grassBase.push({x,z,s,r:d.rotation.y,ry:d.scale.y/s});
+    n++;
+  }
+  grassMesh.count = Math.floor(n*0.6);
+  scene.add(grassMesh);
+}
+const grassTime = {value:0};
+
+function reseatGrass(){                                 // after exaggeration change
+  if(!grassMesh) return;
+  const d = new THREE.Object3D();
+  for(let i=0;i<grassBase.length;i++){
+    const g=grassBase[i];
+    d.position.set(g.x, heightAt(g.x,g.z), g.z);
+    d.rotation.set(0,g.r,0);
+    d.scale.set(g.s,g.s*g.ry,g.s);
+    d.updateMatrix();
+    grassMesh.setMatrixAt(i,d.matrix);
+  }
+  grassMesh.instanceMatrix.needsUpdate = true;
+}
+
+/* ============================================================
+   6. ROCKS
+   ============================================================ */
+function buildRocks(){
+  const geo = new THREE.IcosahedronGeometry(1,0);
+  const p = geo.attributes.position;
+  for(let i=0;i<p.count;i++)
+    p.setXYZ(i, p.getX(i)*(0.7+Math.random()*0.6),
+                p.getY(i)*(0.6+Math.random()*0.5),
+                p.getZ(i)*(0.7+Math.random()*0.6));
+  geo.computeVertexNormals();
+
+  const mat = new THREE.MeshStandardMaterial({color:0x9d9484, flatShading:true, roughness:1});
+  const rocks = new THREE.InstancedMesh(geo, mat, 340);
+  rocks.castShadow = true; rocks.receiveShadow = true;
+
+  const d = new THREE.Object3D();
+  for(let i=0;i<340;i++){
+    const x=(Math.random()-0.5)*WORLD*0.9, z=(Math.random()-0.5)*WORLD*0.9;
+    const s=2+Math.random()*11;
+    d.position.set(x, heightAt(x,z)+s*0.35, z);
+    d.rotation.set(Math.random()*3,Math.random()*3,Math.random()*3);
+    d.scale.setScalar(s);
+    d.updateMatrix();
+    rocks.setMatrixAt(i,d.matrix);
+  }
+  scene.add(rocks);
+}
+
+/* ============================================================
+   7. CONTROLS — orbit + look + walk
+   ============================================================ */
+const ctl = {
+  target: new THREE.Vector3(0,0,0),
+  dist: 340, minD: 22, maxD: 1100,
+  theta: 0.7, phi: 0.92,          // phi: 0=top-down, PI/2=horizon
+  dragging:false, px:0, py:0,
+  look:new THREE.Vector2(0,0),    // idle mouse-look offset
+  ground:false
 };
-const matCache = new Map();
-function mat(color, opts = {}) {
-  const key = color + '|' + JSON.stringify(opts);
-  if (!matCache.has(key)) {
-    matCache.set(key, new THREE.MeshLambertMaterial({ color, ...opts }));
+
+renderer.domElement.addEventListener('mousedown', e=>{
+  ctl.dragging=true; ctl.px=e.clientX; ctl.py=e.clientY;
+  renderer.domElement.style.cursor='grabbing';
+});
+addEventListener('mouseup', ()=>{ ctl.dragging=false; renderer.domElement.style.cursor='grab'; });
+
+addEventListener('mousemove', e=>{
+  if(ctl.dragging){
+    ctl.theta -= (e.clientX-ctl.px)*0.005;
+    ctl.phi   -= (e.clientY-ctl.py)*0.005;
+    ctl.phi = THREE.MathUtils.clamp(ctl.phi, 0.06, 1.52);
+    ctl.px=e.clientX; ctl.py=e.clientY;
+  }else{
+    ctl.look.x = (e.clientX/innerWidth - 0.5);
+    ctl.look.y = (e.clientY/innerHeight - 0.5);
   }
-  return matCache.get(key);
-}
-function glow(color, intensity = 1) {
-  const key = 'g' + color + intensity;
-  if (!matCache.has(key)) {
-    matCache.set(key, new THREE.MeshBasicMaterial({ color }));
-  }
-  return matCache.get(key);
-}
+});
 
-/* small helper: add a shaped mesh to a group */
-function part(group, geo, material, px,py,pz, sx,sy,sz, rx=0,ry=0,rz=0, shadow=true) {
-  const m = new THREE.Mesh(geo, material);
-  m.position.set(px,py,pz);
-  m.scale.set(sx,sy,sz);
-  m.rotation.set(rx,ry,rz);
-  m.castShadow = shadow;
-  m.receiveShadow = shadow;
-  group.add(m);
-  return m;
-}
-
-/* ================= town piece builders =================
-   Every builder returns a Group centered on 0,0 within a TILE.
-   ====================================================== */
-
-/* --- crooked half-timbered house: jettied upper floor, steep roof --- */
-function buildHouse(r) {
-  const g = new THREE.Group();
-  const w = 2.6 + r() * 1.9;
-  const d = 2.4 + r() * 1.7;
-  const floors = 1 + (r() < 0.55 ? 1 : 0) + (r() < 0.2 ? 1 : 0);
-  const plasterM = mat(pick(PALETTE.plaster, r()));
-  const timberM  = mat(pick(PALETTE.timber, r()));
-  const roofM    = mat(r() < 0.45 ? pick(PALETTE.thatch, r()) : (r() < 0.5 ? pick(PALETTE.roofRed,r()) : pick(PALETTE.roofSlate, r())));
-  const stoneM   = mat(pick(PALETTE.stone, r()));
-
-  let y = 0, cw = w, cd = d;
-
-  // stone footing
-  part(g, G.box, stoneM, 0, 0.22, 0, cw*1.04, 0.44, cd*1.04);
-  y = 0.44;
-
-  for (let f = 0; f < floors; f++) {
-    const h = 1.5 + r()*0.5;
-    // each storey juts a bit further out — the signature medieval overhang
-    if (f > 0) { cw += 0.34; cd += 0.34; }
-    part(g, G.box, plasterM, 0, y + h/2, 0, cw, h, cd);
-
-    // corner posts + cross braces
-    const t = 0.14;
-    for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
-      part(g, G.box, timberM, sx*(cw/2-t/2), y+h/2, sz*(cd/2-t/2), t, h, t);
-    }
-    // horizontal beltcourse
-    part(g, G.box, timberM, 0, y + h - 0.09, 0, cw+0.04, 0.18, cd+0.04);
-    // diagonal brace on the front face
-    if (r() < 0.7) {
-      part(g, G.box, timberM, 0, y+h/2, cd/2+0.01, cw*0.9, 0.12, 0.06, 0,0, 0.5 + r()*0.4);
-    }
-
-    // windows — warm lit panes
-    const wins = 1 + Math.floor(r()*2);
-    for (let i = 0; i < wins; i++) {
-      const off = (i - (wins-1)/2) * (cw / (wins+0.4));
-      const lit = r() < 0.18;
-      part(g, G.box, lit ? glow(0xffd9a0) : mat(0x6b7f96),
-           off, y + h*0.58, cd/2 + 0.03, 0.42, 0.5, 0.06, 0,0,0, false);
-      part(g, G.box, timberM, off, y + h*0.58, cd/2+0.05, 0.5, 0.06, 0.04,0,0,0,false);
-    }
-    y += h;
-  }
-
-  // door
-  part(g, G.box, timberM, cw*0.18, 0.44 + 0.5, cd/2 + 0.02, 0.5, 1.0, 0.08, 0,0,0, false);
-
-  // steep gabled roof, prism made from a rotated 4-sided cone
-  const roofH = 1.5 + r()*0.9;
-  const roof = new THREE.Mesh(new THREE.ConeGeometry(0.5, 1, 4), roofM);
-  roof.position.set(0, y + roofH/2, 0);
-  roof.scale.set(Math.hypot(cw, cd) * 1.06, roofH, Math.hypot(cw, cd) * 1.06);
-  roof.rotation.y = Math.PI/4;
-  roof.castShadow = roof.receiveShadow = true;
-  g.add(roof);
-
-  // chimney with a wisp of smoke
-  if (r() < 0.75) {
-    const cx = (r()-0.5) * cw*0.5, cz = (r()-0.5)*cd*0.5;
-    part(g, G.box, stoneM, cx, y + roofH*0.7, cz, 0.42, roofH*1.1, 0.42);
-    const puff = new THREE.Mesh(G.ico, mat(0xf2f4f8, {transparent:true, opacity:0.42}));
-    puff.position.set(cx, y + roofH*1.45, cz);
-    puff.scale.setScalar(0.7 + r()*0.5);
-    g.add(puff);
-    g.userData.smoke = puff;
-  }
-  return g;
-}
-
-/* --- wizard tower: tapered stone drum, conical cap, floating runes --- */
-function buildTower(r) {
-  const g = new THREE.Group();
-  const stoneM = mat(pick(PALETTE.stone, r()));
-  const capM   = mat(r() < 0.5 ? 0x51436f : pick(PALETTE.roofSlate, r()));
-  const drums = 3 + Math.floor(r()*3);
-  let y = 0, rad = 1.5;
-
-  for (let i = 0; i < drums; i++) {
-    const h = 1.5 + r()*0.7;
-    part(g, G.cyl, stoneM, 0, y + h/2, 0, rad*2, h, rad*2);
-    // stone banding between drums
-    part(g, G.cyl, mat(pick(PALETTE.stone, r())), 0, y + h, 0, rad*2.16, 0.16, rad*2.16);
-    // arrow-slit windows, some lit arcane
-    const n = 3;
-    for (let k = 0; k < n; k++) {
-      const a = r()*6.28 + k * 2.09;
-      const litM = r() < 0.5 ? glow(PALETTE.magic) : glow(PALETTE.ember);
-      part(g, G.box, litM,
-           Math.cos(a)*rad*0.98, y + h*0.55, Math.sin(a)*rad*0.98,
-           0.2, 0.46, 0.2, 0, -a, 0, false);
-    }
-    y += h;
-    rad *= 0.86;
-  }
-
-  // balcony ring
-  part(g, G.cyl, stoneM, 0, y + 0.1, 0, rad*2.9, 0.2, rad*2.9);
-  y += 0.2;
-
-  // conical cap
-  const capH = 2.2 + r()*1.4;
-  part(g, G.cone, capM, 0, y + capH/2, 0, rad*2.5, capH, rad*2.5);
-
-  // orb finial, gently bobbing
-  const orb = new THREE.Mesh(G.ico1, glow(PALETTE.magic));
-  orb.position.set(0, y + capH + 0.5, 0);
-  orb.scale.setScalar(0.55);
-  g.add(orb);
-  const halo = new THREE.PointLight(PALETTE.magic, 1.4, 11, 2);
-  halo.position.copy(orb.position);
-  g.add(halo);
-  g.userData.orb = orb;
-
-  // slow-orbiting rune shards
-  const runes = new THREE.Group();
-  runes.position.copy(orb.position);
-  for (let i = 0; i < 5; i++) {
-    const a = (i/5) * 6.28;
-    part(runes, G.box, glow(0xc9b6ff), Math.cos(a)*1.5, (r()-0.5)*0.8, Math.sin(a)*1.5,
-         0.16, 0.26, 0.05, 0, -a, 0, false);
-  }
-  g.add(runes);
-  g.userData.runes = runes;
-  return g;
-}
-
-/* --- chapel / shrine with a rose window and buttresses --- */
-function buildChapel(r) {
-  const g = new THREE.Group();
-  const stoneM = mat(pick(PALETTE.stone, r()));
-  const roofM  = mat(pick(PALETTE.roofSlate, r()));
-  const w = 3.2, d = 5.0, h = 3.4;
-
-  part(g, G.box, stoneM, 0, h/2, 0, w, h, d);
-
-  // ribbed roof
-  const roof = new THREE.Mesh(new THREE.ConeGeometry(0.5,1,4), roofM);
-  roof.position.set(0, h + 0.9, 0);
-  roof.scale.set(w*1.5, 1.8, d*1.06);
-  roof.rotation.y = Math.PI/4;
-  roof.castShadow = roof.receiveShadow = true;
-  g.add(roof);
-
-  // flying buttresses
-  for (const sx of [-1,1]) for (let i = -1; i <= 1; i++) {
-    part(g, G.box, stoneM, sx*(w/2+0.35), h*0.42, i*1.5, 0.35, h*0.85, 0.35);
-    part(g, G.box, stoneM, sx*(w/2+0.2), h*0.9, i*1.5, 0.7, 0.22, 0.28, 0,0, sx*0.5);
-  }
-
-  // rose window
-  const rose = new THREE.Mesh(G.tor, glow(0xffd9a0));
-  rose.position.set(0, h*0.68, d/2 + 0.06);
-  rose.scale.setScalar(1.5);
-  g.add(rose);
-  part(g, G.cyl, glow(0xffe6bd), 0, h*0.68, d/2+0.06, 1.2, 0.08, 1.2, Math.PI/2,0,0, false);
-
-  // arched doorway
-  part(g, G.box, mat(PALETTE.wood), 0, 0.8, d/2+0.04, 1.1, 1.6, 0.1, 0,0,0, false);
-  part(g, G.cyl, mat(PALETTE.wood), 0, 1.6, d/2+0.04, 1.1, 0.1, 1.1, Math.PI/2,0,0, false);
-
-  // bell spire
-  part(g, G.box, stoneM, 0, h + 1.2, -d/2 + 0.9, 1.1, 3.4, 1.1);
-  part(g, G.cone6, roofM, 0, h + 3.6, -d/2 + 0.9, 1.5, 2.0, 1.5);
-  const bell = new THREE.Mesh(G.cone, mat(0xb08d3f));
-  bell.position.set(0, h + 2.3, -d/2 + 0.9);
-  bell.scale.set(0.55, -0.6, 0.55);
-  g.add(bell);
-  return g;
-}
-
-/* --- windmill with turning sails --- */
-function buildMill(r) {
-  const g = new THREE.Group();
-  const stoneM = mat(pick(PALETTE.stone, r()));
-  part(g, G.cyl, stoneM, 0, 2.0, 0, 3.4, 4.0, 3.4);
-  part(g, G.cyl, stoneM, 0, 0.3, 0, 4.0, 0.6, 4.0);
-  part(g, G.cone, mat(pick(PALETTE.thatch, r())), 0, 4.7, 0, 3.5, 1.6, 3.5);
-  part(g, G.box, mat(PALETTE.wood), 0, 1.0, 1.6, 0.8, 1.6, 0.2, 0,0,0, false);
-
-  const sails = new THREE.Group();
-  sails.position.set(0, 4.0, 2.0);
-  for (let i = 0; i < 4; i++) {
-    const arm = new THREE.Group();
-    arm.rotation.z = i * Math.PI/2;
-    part(arm, G.box, mat(PALETTE.wood), 0, 1.8, 0, 0.16, 3.6, 0.16);
-    part(arm, G.box, mat(0xd9cdae), 0.3, 1.9, 0.06, 0.7, 2.8, 0.05, 0,0,0, false);
-    sails.add(arm);
-  }
-  g.add(sails);
-  g.userData.sails = sails;
-  return g;
-}
-
-/* --- market stall cluster with striped awnings --- */
-function buildMarket(r) {
-  const g = new THREE.Group();
-  const n = 2 + Math.floor(r()*3);
-  const awnings = [0xa8443f, 0x3f6a8a, 0x4f7a45, 0x8a6a2f, 0x6b4a7a];
-  for (let i = 0; i < n; i++) {
-    const st = new THREE.Group();
-    st.position.set((r()-0.5)*6, 0, (r()-0.5)*6);
-    st.rotation.y = r()*6.28;
-    part(st, G.box, mat(PALETTE.wood), 0, 0.85, 0, 2.2, 0.16, 1.4);
-    for (const sx of [-1,1]) for (const sz of [-1,1])
-      part(st, G.box, mat(PALETTE.wood), sx*1.0, 0.42, sz*0.6, 0.12, 0.85, 0.12);
-    for (const sx of [-1,1]) for (const sz of [-1,1])
-      part(st, G.box, mat(PALETTE.wood), sx*1.0, 1.4, sz*0.6, 0.1, 1.1, 0.1);
-    part(st, G.box, mat(pick(awnings, r())), 0, 2.1, 0, 2.6, 0.14, 1.9, 0.22,0,0);
-    // crates and produce
-    for (let k = 0; k < 3; k++) {
-      part(st, G.box, mat(0x8a6a44), (r()-0.5)*1.6, 1.05, (r()-0.5)*0.9, 0.34,0.28,0.34, 0, r()*3, 0);
-      part(st, G.ico, mat(pick([0xc0563f,0xb8993f,0x5f8a4a], r())), (r()-0.5)*1.6, 1.15, (r()-0.5)*0.9, 0.3,0.3,0.3);
-    }
-    g.add(st);
-  }
-  return g;
-}
-
-/* --- well, cart, hay, barrels: the little props --- */
-function buildWell(r) {
-  const g = new THREE.Group();
-  const stoneM = mat(pick(PALETTE.stone, r()));
-  part(g, G.cyl, stoneM, 0, 0.45, 0, 1.8, 0.9, 1.8);
-  part(g, G.cyl, mat(0x1b2430), 0, 0.9, 0, 1.4, 0.06, 1.4, 0,0,0, false);
-  for (const sx of [-1,1]) part(g, G.box, mat(PALETTE.wood), sx*0.75, 1.6, 0, 0.16, 1.6, 0.16);
-  part(g, G.cone6, mat(pick(PALETTE.thatch, r())), 0, 2.7, 0, 2.6, 1.1, 2.6);
-  part(g, G.cyl, mat(PALETTE.wood), 0, 2.2, 0, 0.16, 1.7, 0.16, 0,0, Math.PI/2);
-  part(g, G.cyl, mat(0x6a4a30), 0, 1.55, 0, 0.4, 0.4, 0.4);
-  return g;
-}
-
-function buildOrchard(r) {
-  const g = new THREE.Group();
-  const rows = 3;
-  for (let i = 0; i < rows; i++) for (let k = 0; k < rows; k++) {
-    if (r() < 0.18) continue;
-    const t = new THREE.Group();
-    t.position.set((i-1)*3 + (r()-0.5), 0, (k-1)*3 + (r()-0.5));
-    const hgt = 1.4 + r()*0.8;
-    part(t, G.cyl, mat(0x5b4230), 0, hgt/2, 0, 0.34, hgt, 0.34);
-    const leafM = mat(pick([PALETTE.leafA, PALETTE.leafB, PALETTE.leafC], r()));
-    for (let b = 0; b < 3; b++)
-      part(t, G.ico, leafM, (r()-0.5)*0.9, hgt + 0.5 + b*0.35, (r()-0.5)*0.9, 2.0-b*0.35, 1.7-b*0.3, 2.0-b*0.35, r(), r(), r());
-    g.add(t);
-  }
-  // low field wall
-  for (const sx of [-1,1])
-    part(g, G.box, mat(pick(PALETTE.stone, r())), sx*5.2, 0.3, 0, 0.4, 0.6, 10.4);
-  return g;
-}
-
-function buildGarden(r) {
-  const g = new THREE.Group();
-  // tilled rows
-  for (let i = -3; i <= 3; i++)
-    part(g, G.box, mat(i%2 ? 0x5a4632 : 0x6a5540), i*1.2, 0.08, 0, 0.9, 0.16, 8);
-  // crops
-  for (let i = 0; i < 26; i++)
-    part(g, G.cone6, mat(pick([0x6f9a4a, 0x5c8a3f, 0x84a355], r())), (r()-0.5)*8, 0.35, (r()-0.5)*8, 0.4, 0.7, 0.4);
-  // scarecrow
-  part(g, G.box, mat(PALETTE.wood), 2, 0.9, -1, 0.14, 1.8, 0.14);
-  part(g, G.box, mat(PALETTE.wood), 2, 1.4, -1, 1.4, 0.12, 0.12);
-  part(g, G.ico, mat(0xb99a55), 2, 1.9, -1, 0.6,0.6,0.6);
-  part(g, G.cone6, mat(0x8a6a3a), 2, 2.2, -1, 1.1, 0.5, 1.1);
-  return g;
-}
-
-function buildGrove(r) {
-  const g = new THREE.Group();
-  const n = 3 + Math.floor(r()*4);
-  for (let i = 0; i < n; i++) {
-    const t = new THREE.Group();
-    t.position.set((r()-0.5)*8, 0, (r()-0.5)*8);
-    const hgt = 2 + r()*3;
-    part(t, G.cyl, mat(0x54402e), 0, hgt/2, 0, 0.5, hgt, 0.5);
-    const conifer = r() < 0.45;
-    const leafM = mat(pick([PALETTE.leafA, PALETTE.leafB, PALETTE.leafC], r()));
-    if (conifer) {
-      for (let b = 0; b < 3; b++)
-        part(t, G.cone6, leafM, 0, hgt*0.7 + b*1.1, 0, 3.4-b*0.7, 2.2, 3.4-b*0.7);
-    } else {
-      for (let b = 0; b < 3; b++)
-        part(t, G.ico1, leafM, (r()-0.5)*1.2, hgt + 0.6 + b*0.7, (r()-0.5)*1.2,
-             3.2-b*0.6, 2.6-b*0.5, 3.2-b*0.6, r()*3, r()*3, r()*3);
-    }
-    g.add(t);
-  }
-  // mushroom ring — a little magic underfoot
-  if (r() < 0.4) {
-    for (let i = 0; i < 7; i++) {
-      const a = i/7*6.28, R = 2.4;
-      part(g, G.cyl, mat(0xe8e0cc), Math.cos(a)*R, 0.2, Math.sin(a)*R, 0.2,0.4,0.2, 0,0,0,false);
-      part(g, G.sph, glow(0x7fd0ff), Math.cos(a)*R, 0.45, Math.sin(a)*R, 0.55,0.35,0.55, 0,0,0,false);
-    }
-  }
-  return g;
-}
-
-function buildPond(r) {
-  const g = new THREE.Group();
-  part(g, G.cyl, mat(PALETTE.water), 0, 0.06, 0, 8.4, 0.12, 7.0, 0,0,0, false);
-  part(g, G.cyl, mat(0x6d7a54), 0, 0.04, 0, 9.2, 0.08, 7.8, 0,0,0, false);
-  // reeds & stones
-  for (let i = 0; i < 14; i++) {
-    const a = r()*6.28, R = 3.6 + r()*0.9;
-    part(g, G.cone6, mat(0x7a8a4a), Math.cos(a)*R, 0.5, Math.sin(a)*R*0.85, 0.24, 1.0, 0.24);
-  }
-  for (let i = 0; i < 6; i++)
-    part(g, G.ico, mat(pick(PALETTE.stone, r())), (r()-0.5)*9, 0.2, (r()-0.5)*8, 0.8,0.5,0.8, r(),r(),r());
-  // lily pads
-  for (let i = 0; i < 5; i++)
-    part(g, G.cyl, mat(0x4d7f45), (r()-0.5)*6, 0.14, (r()-0.5)*5, 0.9,0.05,0.9, 0,0,0,false);
-  return g;
-}
-
-function buildForge(r) {
-  const g = new THREE.Group();
-  const stoneM = mat(pick(PALETTE.stone, r()));
-  part(g, G.box, stoneM, 0, 1.3, 0, 4.4, 2.6, 3.6);
-  const roof = new THREE.Mesh(new THREE.ConeGeometry(0.5,1,4), mat(pick(PALETTE.roofSlate, r())));
-  roof.position.set(0, 3.2, 0); roof.scale.set(6.0, 1.5, 5.2); roof.rotation.y = Math.PI/4;
-  roof.castShadow = roof.receiveShadow = true; g.add(roof);
-  // open forge front with a glowing hearth
-  part(g, G.box, glow(0xff7b33), 0, 1.0, 1.85, 1.6, 1.2, 0.1, 0,0,0, false);
-  const heat = new THREE.PointLight(0xff8a3d, 2.2, 10, 2);
-  heat.position.set(0, 1.4, 2.2); g.add(heat);
-  g.userData.hearth = heat;
-  // big chimney
-  part(g, G.box, stoneM, -1.5, 3.6, -0.8, 0.9, 3.2, 0.9);
-  // anvil and wood pile
-  part(g, G.box, mat(0x3a3a42), 2.6, 0.5, 1.8, 0.9, 0.4, 0.5);
-  part(g, G.box, mat(0x3a3a42), 2.6, 0.25, 1.8, 0.4, 0.5, 0.4);
-  for (let i = 0; i < 5; i++)
-    part(g, G.cyl, mat(0x6a4f35), -2.6 + (i%3)*0.34, 0.2 + Math.floor(i/3)*0.34, 2.0, 0.3, 1.5, 0.3, 0,0, Math.PI/2);
-  return g;
-}
-
-function buildTavern(r) {
-  const g = new THREE.Group();
-  const h = buildHouse(r);
-  h.scale.setScalar(1.25);
-  g.add(h);
-  // hanging sign on a wrought bracket
-  part(g, G.box, mat(0x2f2a30), 2.6, 3.2, 2.4, 1.5, 0.1, 0.1, 0,0,0, false);
-  part(g, G.box, mat(PALETTE.wood), 3.2, 2.6, 2.4, 1.1, 1.0, 0.1);
-  part(g, G.cyl, glow(0xffc46b), 3.2, 2.6, 2.5, 0.5, 0.06, 0.5, Math.PI/2,0,0, false);
-  // lantern by the door
-  const lamp = new THREE.PointLight(PALETTE.ember, 1.5, 9, 2);
-  lamp.position.set(1.6, 2.2, 2.6);
-  g.add(lamp);
-  part(g, G.ico, glow(PALETTE.ember), 1.6, 2.2, 2.6, 0.4,0.5,0.4, 0,0,0, false);
-  // barrels outside
-  for (let i = 0; i < 3; i++)
-    part(g, G.cyl, mat(0x7a5a38), -2.4 - i*0.1, 0.45, 2.6 - i*0.9, 0.8, 0.9, 0.8);
-  return g;
-}
-
-function buildStatue(r) {
-  const g = new THREE.Group();
-  const stoneM = mat(pick(PALETTE.stone, r()));
-  part(g, G.box, stoneM, 0, 0.25, 0, 4.0, 0.5, 4.0);
-  part(g, G.box, stoneM, 0, 0.85, 0, 2.4, 0.7, 2.4);
-  part(g, G.box, stoneM, 0, 1.6, 0, 1.4, 0.9, 1.4);
-  // a robed figure raising a light
-  part(g, G.cyl, stoneM, 0, 2.9, 0, 1.2, 1.7, 0.9);
-  part(g, G.sph, stoneM, 0, 4.0, 0, 0.7, 0.8, 0.7);
-  part(g, G.box, stoneM, 0.55, 3.6, 0, 0.28, 1.6, 0.28, 0,0,-0.35);
-  const spark = new THREE.Mesh(G.ico1, glow(0xbfe8ff));
-  spark.position.set(0.85, 4.6, 0); spark.scale.setScalar(0.5); g.add(spark);
-  const pl = new THREE.PointLight(0x9fd6ff, 1.6, 11, 2);
-  pl.position.copy(spark.position); g.add(pl);
-  g.userData.orb = spark;
-  return g;
-}
-
-function buildRuin(r) {
-  const g = new THREE.Group();
-  const stoneM = mat(pick(PALETTE.stone, r()));
-  // broken arches and toppled columns
-  for (let i = 0; i < 5; i++) {
-    const hgt = 0.8 + r()*3;
-    part(g, G.box, stoneM, (r()-0.5)*7, hgt/2, (r()-0.5)*7, 0.8, hgt, 0.8, 0, r()*3, (r()-0.5)*0.16);
-  }
-  for (let i = 0; i < 3; i++)
-    part(g, G.cyl, stoneM, (r()-0.5)*7, 0.4, (r()-0.5)*7, 0.8, 3.0, 0.8, Math.PI/2, r()*3, 0);
-  // ivy
-  for (let i = 0; i < 6; i++)
-    part(g, G.ico, mat(PALETTE.leafC), (r()-0.5)*7, 0.5 + r(), (r()-0.5)*7, 1.4,0.9,1.4, r(),r(),r());
-  return g;
-}
-
-/* --- ground plate + road for one tile --- */
-function buildGround(r, roadN, roadE) {
-  const g = new THREE.Group();
-  const grassM = mat(r() < 0.5 ? PALETTE.grass : PALETTE.grassDim);
-  part(g, G.box, grassM, 0, -0.15, 0, TILE, 0.3, TILE, 0,0,0, true);
-
-  const roadM = mat(PALETTE.road);
-  const kerbM = mat(PALETTE.roadEdge);
-  const RW = 3.6;
-  if (roadN) {
-    part(g, G.box, roadM, 0, 0.06, 0, RW, 0.42, TILE, 0,0,0, true);
-    for (const sx of [-1,1]) part(g, G.box, kerbM, sx*RW/2, 0.10, 0, 0.34, 0.46, TILE, 0,0,0, true);
-  }
-  if (roadE) {
-    part(g, G.box, roadM, 0, 0.06, 0, TILE, 0.42, RW, 0,0,0, true);
-    for (const sz of [-1,1]) part(g, G.box, kerbM, 0, 0.10, sz*RW/2, TILE, 0.46, 0.34, 0,0,0, true);
-  }
-  // cobble speckle on roads
-  if (roadN || roadE) {
-    for (let i = 0; i < 22; i++) {
-      const on = roadN && (!roadE || r() < 0.5);
-      const px = on ? (r()-0.5)*RW*0.8 : (r()-0.5)*TILE;
-      const pz = on ? (r()-0.5)*TILE : (r()-0.5)*RW*0.8;
-      part(g, G.box, mat(r() < 0.5 ? 0xc4b38f : 0xe4d7b8), px, 0.28, pz, 0.55, 0.06, 0.55, 0, r()*3, 0, false);
-    }
-  }
-  return g;
-}
-
-/* --- street lanterns along road edges --- */
-function buildLantern(r) {
-  const g = new THREE.Group();
-  part(g, G.cyl, mat(0x2f2a30), 0, 1.2, 0, 0.16, 2.4, 0.16);
-  part(g, G.box, mat(0x2f2a30), 0.25, 2.4, 0, 0.6, 0.1, 0.1, 0,0,0, false);
-  part(g, G.ico, glow(PALETTE.ember), 0.5, 2.25, 0, 0.36, 0.5, 0.36, 0,0,0, false);
-  const pl = new THREE.PointLight(PALETTE.ember, 0.9, 7, 2);
-  pl.position.set(0.5, 2.25, 0);
-  g.add(pl);
-  return g;
-}
-
-/* ================= tile assembly ================= */
-/* A tile's contents are a pure function of its (gx, gz) coordinate,
-   so leapfrogging a tile to a new coordinate rebuilds the same place. */
-
-const BUILDERS = [
-  { fn: buildHouse,   w: 30 },
-  { fn: buildTower,   w: 5  },
-  { fn: buildChapel,  w: 3  },
-  { fn: buildMill,    w: 3  },
-  { fn: buildMarket,  w: 6  },
-  { fn: buildWell,    w: 4  },
-  { fn: buildOrchard, w: 6  },
-  { fn: buildGarden,  w: 6  },
-  { fn: buildGrove,   w: 9  },
-  { fn: buildPond,    w: 4  },
-  { fn: buildForge,   w: 4  },
-  { fn: buildTavern,  w: 5  },
-  { fn: buildStatue,  w: 3  },
-  { fn: buildRuin,    w: 4  },
-];
-const TOTAL_W = BUILDERS.reduce((a,b) => a + b.w, 0);
-function chooseBuilder(t) {
-  let acc = 0, x = t * TOTAL_W;
-  for (const b of BUILDERS) { acc += b.w; if (x < acc) return b.fn; }
-  return buildHouse;
-}
-
-const animated = [];  // { obj, kind, phase }
-
-function makeTile(gx, gz) {
-  const g = new THREE.Group();
-  const r = rngAt(gx, gz);
-
-  // road layout: a loose grid — every 2nd/3rd line carries a street
-  const roadN = ((gx % 2) + 2) % 2 === 0;
-  const roadE = ((gz % 2) + 2) % 2 === 0;
-
-  g.add(buildGround(r, roadN, roadE));
-
-  // where can we build? avoid the road corridors
-  const freeSlots = [];
-  for (const qx of [-1, 1]) for (const qz of [-1, 1]) {
-    const cx = qx * TILE * 0.30, cz = qz * TILE * 0.30;
-    if (roadN && Math.abs(cx) < 2.9) continue;
-    if (roadE && Math.abs(cz) < 2.9) continue;
-    freeSlots.push([cx, cz]);
-  }
-
-  const crossroads = roadN && roadE;
-  const density = crossroads ? 0.55 : 0.85;
-
-  for (const [cx, cz] of freeSlots) {
-    if (r() > density) continue;
-    const build = chooseBuilder(r());
-    const obj = build(r);
-    obj.position.set(cx + (r()-0.5)*0.7, 0, cz + (r()-0.5)*0.7);
-    obj.rotation.y = Math.round(r()*4) * Math.PI/2 + (r()-0.5)*0.14;
-    g.add(obj);
-
-    if (obj.userData.sails) animated.push({ o: obj.userData.sails, k:'sails', p: r()*6.28 });
-    if (obj.userData.orb)   animated.push({ o: obj.userData.orb,   k:'bob',   p: r()*6.28 });
-    if (obj.userData.runes) animated.push({ o: obj.userData.runes, k:'orbit', p: r()*6.28 });
-    if (obj.userData.smoke) animated.push({ o: obj.userData.smoke, k:'smoke', p: r()*6.28, y: obj.userData.smoke.position.y });
-    if (obj.userData.hearth)animated.push({ o: obj.userData.hearth,k:'flicker',p: r()*6.28, i: obj.userData.hearth.intensity });
-  }
-
-  // lanterns on the corners of crossroads
-  if (crossroads) {
-    for (const sx of [-1,1]) for (const sz of [-1,1]) {
-      if (r() < 0.4) continue;
-      const l = buildLantern(r);
-      l.position.set(sx*2.5, 0, sz*2.5);
-      l.rotation.y = Math.atan2(-sx, -sz);
-      g.add(l);
-    }
-  }
-
-  g.position.set(gx * TILE, 0, gz * TILE);
-  return g;
-}
-
-/* ================= the wrapping pool ================= */
-const tiles = new Map();       // "gx,gz" -> Group
-const town  = new THREE.Group();
-scene.add(town);
-
-let originX = 0, originZ = 0;  // which tile the camera sits over
-
-function rebuild(cx, cz) {
-  const wanted = new Set();
-  for (let i = -HALF; i <= HALF; i++) {
-    for (let k = -HALF; k <= HALF; k++) wanted.add((cx+i) + ',' + (cz+k));
-  }
-  // retire tiles outside the window
-  for (const [key, t] of tiles) {
-    if (!wanted.has(key)) {
-      town.remove(t);
-      t.traverse(o => { if (o.isMesh && o.geometry && !Object.values(G).includes(o.geometry)) o.geometry.dispose(); });
-      tiles.delete(key);
-      // drop their animation entries
-      for (let i = animated.length - 1; i >= 0; i--) {
-        let p = animated[i].o, inside = false;
-        while (p) { if (p === t) { inside = true; break; } p = p.parent; }
-        if (inside) animated.splice(i, 1);
-      }
-    }
-  }
-  // spawn the newly visible ones
-  for (const key of wanted) {
-    if (tiles.has(key)) continue;
-    const [gx, gz] = key.split(',').map(Number);
-    const t = makeTile(gx, gz);
-    tiles.set(key, t);
-    town.add(t);
-  }
-}
-rebuild(0, 0);
-
-/* ================= camera drift & input ================= */
-const target   = new THREE.Vector3(0, 0, 0);   // where we're heading
-const focus    = new THREE.Vector3(0, 0, 0);   // where we are (eased)
-let   velX = 0, velZ = 0;
-let   dragging = false, lastX = 0, lastY = 0;
-let   zoomTarget = zoom;
-let   leagues = 0;
-const wardEl = document.querySelector('#ward b');
-
-/* screen-space drag -> world-space movement on the ground plane */
-const RIGHT = new THREE.Vector3(1, 0, -1).normalize();
-const FWD   = new THREE.Vector3(-1, 0, -1).normalize();
-
-function pointerDown(x, y) { dragging = true; lastX = x; lastY = y; canvas.classList.add('dragging'); }
-function pointerMove(x, y) {
-  if (!dragging) return;
-  const dx = (x - lastX) / innerHeight * zoom * 2.4;
-  const dy = (y - lastY) / innerHeight * zoom * 2.4;
-  lastX = x; lastY = y;
-  velX -= RIGHT.x*dx + FWD.x*dy;
-  velZ -= RIGHT.z*dx + FWD.z*dy;
-}
-function pointerUp() { dragging = false; canvas.classList.remove('dragging'); }
-
-canvas.addEventListener('pointerdown', e => { canvas.setPointerCapture(e.pointerId); pointerDown(e.clientX, e.clientY); });
-canvas.addEventListener('pointermove', e => pointerMove(e.clientX, e.clientY));
-canvas.addEventListener('pointerup',   pointerUp);
-canvas.addEventListener('pointercancel', pointerUp);
-canvas.addEventListener('wheel', e => {
+addEventListener('wheel', e=>{
   e.preventDefault();
-  zoomTarget = THREE.MathUtils.clamp(zoomTarget * (1 + Math.sign(e.deltaY) * 0.08), 8, 34);
-}, { passive:false });
+  ctl.dist = THREE.MathUtils.clamp(ctl.dist * (1 + Math.sign(e.deltaY)*0.09), ctl.minD, ctl.maxD);
+},{passive:false});
 
-/* pinch to zoom */
-let pinch = 0;
-canvas.addEventListener('touchstart', e => {
-  if (e.touches.length === 2) {
-    pinch = Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
-    dragging = false;
+/* touch */
+let tPrev=null, pinch=0;
+renderer.domElement.addEventListener('touchstart', e=>{
+  if(e.touches.length===1) tPrev={x:e.touches[0].clientX,y:e.touches[0].clientY};
+  if(e.touches.length===2) pinch=Math.hypot(
+    e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
+},{passive:true});
+renderer.domElement.addEventListener('touchmove', e=>{
+  if(e.touches.length===1&&tPrev){
+    ctl.theta -= (e.touches[0].clientX-tPrev.x)*0.006;
+    ctl.phi = THREE.MathUtils.clamp(ctl.phi-(e.touches[0].clientY-tPrev.y)*0.006,0.06,1.52);
+    tPrev={x:e.touches[0].clientX,y:e.touches[0].clientY};
   }
-}, {passive:true});
-canvas.addEventListener('touchmove', e => {
-  if (e.touches.length === 2 && pinch) {
-    const d = Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
-    zoomTarget = THREE.MathUtils.clamp(zoomTarget * (pinch/d), 8, 34);
-    pinch = d;
+  if(e.touches.length===2){
+    const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,
+                       e.touches[0].clientY-e.touches[1].clientY);
+    ctl.dist=THREE.MathUtils.clamp(ctl.dist*(pinch/d), ctl.minD, ctl.maxD);
+    pinch=d;
   }
-}, {passive:true});
-canvas.addEventListener('touchend', () => { pinch = 0; }, {passive:true});
+},{passive:true});
 
-/* arrow keys / WASD */
-const keys = new Set();
-addEventListener('keydown', e => keys.add(e.key.toLowerCase()));
-addEventListener('keyup',   e => keys.delete(e.key.toLowerCase()));
+const keys={};
+addEventListener('keydown', e=>{keys[e.key.toLowerCase()]=true;});
+addEventListener('keyup',   e=>{keys[e.key.toLowerCase()]=false;});
 
-addEventListener('resize', onResize);
-function onResize() {
-  aspect = innerWidth / innerHeight;
-  renderer.setSize(innerWidth, innerHeight, false);
-  camera.left = -zoom*aspect; camera.right = zoom*aspect;
-  camera.top = zoom; camera.bottom = -zoom;
-  camera.updateProjectionMatrix();
-}
-onResize();
-
-const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-/* ================= loop ================= */
-const clock = new THREE.Clock();
-let shown = false;
-
-function frame() {
-  requestAnimationFrame(frame);
-  const dt = Math.min(clock.getDelta(), 0.05);
-  const t  = clock.elapsedTime;
-
-  // keyboard nudge
-  const k = 16 * dt;
-  if (keys.has('arrowup')   || keys.has('w')) { velX += FWD.x*k;   velZ += FWD.z*k; }
-  if (keys.has('arrowdown') || keys.has('s')) { velX -= FWD.x*k;   velZ -= FWD.z*k; }
-  if (keys.has('arrowleft') || keys.has('a')) { velX -= RIGHT.x*k; velZ -= RIGHT.z*k; }
-  if (keys.has('arrowright')|| keys.has('d')) { velX += RIGHT.x*k; velZ += RIGHT.z*k; }
-
-  // gentle ambient drift when idle, so the town always feels alive
-  if (!dragging && Math.hypot(velX, velZ) < 0.06 && !reduced) {
-    velX += Math.cos(t*0.07) * 0.012;
-    velZ += Math.sin(t*0.05) * 0.012;
-  }
-
-  target.x += velX; target.z += velZ;
-  leagues += Math.hypot(velX, velZ);
-  velX *= 0.86; velZ *= 0.86;
-
-  focus.x += (target.x - focus.x) * Math.min(1, dt * 6);
-  focus.z += (target.z - focus.z) * Math.min(1, dt * 6);
-
-  zoom += (zoomTarget - zoom) * Math.min(1, dt * 5);
-  camera.left = -zoom*aspect; camera.right = zoom*aspect;
-  camera.top = zoom; camera.bottom = -zoom;
-  camera.updateProjectionMatrix();
-
-  camera.position.set(focus.x + 60, 58, focus.z + 60);
-  camera.lookAt(focus.x, 0, focus.z);
-  sun.position.set(focus.x + 44, 92, focus.z + 30);
-  sun.target.position.set(focus.x, 0, focus.z);
-  sun.target.updateMatrixWorld();
-
-  // wrap the tile pool when we cross into a new block
-  const cx = Math.round(focus.x / TILE);
-  const cz = Math.round(focus.z / TILE);
-  if (cx !== originX || cz !== originZ) { originX = cx; originZ = cz; rebuild(cx, cz); }
-
-  // per-piece animation
-  if (!reduced) {
-    for (const a of animated) {
-      switch (a.k) {
-        case 'sails':   a.o.rotation.z += dt * 0.55; break;
-        case 'bob':     a.o.position.y += Math.sin(t*1.4 + a.p) * 0.0035;
-                        a.o.rotation.y += dt * 0.6; break;
-        case 'orbit':   a.o.rotation.y += dt * 0.35;
-                        a.o.rotation.x = Math.sin(t*0.4 + a.p) * 0.25; break;
-        case 'smoke': { const c = ((t*0.35 + a.p/6.28) % 1);
-                        a.o.position.y = a.y + c * 2.6;
-                        a.o.material.opacity = 0.4 * (1 - c);
-                        a.o.scale.setScalar(0.6 + c * 1.4); break; }
-        case 'flicker': a.o.intensity = a.i * (0.8 + Math.sin(t*7 + a.p)*0.12 + Math.sin(t*17+a.p)*0.08); break;
-      }
-    }
-  }
-
-  wardEl.textContent = Math.floor(leagues / 10).toLocaleString();
-  renderer.render(scene, camera);
-
-  if (!shown) { shown = true; document.getElementById('plate').classList.add('gone'); }
+function walk(dt){
+  const sp = 150*dt*(keys['shift']?2.4:1);
+  let fx=0, fz=0;
+  if(keys['w']||keys['arrowup'])    fz-=1;
+  if(keys['s']||keys['arrowdown'])  fz+=1;
+  if(keys['a']||keys['arrowleft'])  fx-=1;
+  if(keys['d']||keys['arrowright']) fx+=1;
+  if(!fx&&!fz) return;
+  const L=Math.hypot(fx,fz); fx/=L; fz/=L;
+  const c=Math.cos(ctl.theta), s=Math.sin(ctl.theta);
+  ctl.target.x = THREE.MathUtils.clamp(ctl.target.x + (fx*c - fz*s)*sp, -WORLD/2*0.9, WORLD/2*0.9);
+  ctl.target.z = THREE.MathUtils.clamp(ctl.target.z + (fx*s + fz*c)*sp, -WORLD/2*0.9, WORLD/2*0.9);
 }
 
-frame();
+/* ============================================================
+   8. UI WIRING
+   ============================================================ */
+$('exag').addEventListener('input', e=>{
+  exag = +e.target.value;
+  $('vExag').textContent = exag.toFixed(2)+'×';
+  applyExag(); reseatGrass();
+});
+$('grass').addEventListener('input', e=>{
+  $('vGrass').textContent = e.target.value+'%';
+  if(grassMesh) grassMesh.count = Math.floor(grassBase.length * e.target.value/100);
+});
+$('tod').addEventListener('input', e=>{
+  const t = e.target.value/100;                     // 0 dawn -> 1 dusk
+  const ang = (0.12 + t*0.76) * Math.PI;
+  sun.position.set(Math.cos(ang)*760, Math.max(90,Math.sin(ang)*720), 380);
+  const warm = 1 - Math.sin(ang);                   // low sun = warm
+  sun.color.setHSL(0.10, 0.35+warm*0.4, 0.72-warm*0.12);
+  skyMat.uniforms.top.value.setHSL(0.57, 0.45+warm*0.15, 0.62-warm*0.14);
+  skyMat.uniforms.bot.value.setHSL(0.09, 0.55+warm*0.3, 0.80-warm*0.10);
+  scene.fog.color.setHSL(0.10, 0.30+warm*0.2, 0.84-warm*0.12);
+});
+$('btnTop').onclick = ()=>{ ctl.ground=false; ctl.phi=0.32; ctl.dist=620; };
+$('btnLow').onclick = ()=>{ ctl.ground=true;  ctl.phi=1.40; ctl.dist=34;  };
+$('toggle').onclick = ()=>{
+  const p=$('panel'); p.style.display = p.style.display==='none'?'block':'none';
 };
-</script>
-</body>
-</html>
+$('vExag').textContent='1.60×'; $('vGrass').textContent='60%';
+
+addEventListener('resize', ()=>{
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+/* ============================================================
+   9. LOOP
+   ============================================================ */
+const clock = new THREE.Clock();
+const camPos = new THREE.Vector3();
+let started = false;
+
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.05);
+  grassTime.value += dt;
+
+  if(started){
+    walk(dt);
+    ctl.target.y += (heightAt(ctl.target.x, ctl.target.z) - ctl.target.y) * 0.14;
+
+    const th = ctl.theta + ctl.look.x * 0.5;
+    const ph = THREE.MathUtils.clamp(ctl.phi + ctl.look.y * 0.22, 0.06, 1.53);
+    const r  = ctl.dist;
+
+    camPos.set(
+      ctl.target.x + r*Math.sin(ph)*Math.sin(th),
+      ctl.target.y + r*Math.cos(ph) + (ctl.ground?6:0),
+      ctl.target.z + r*Math.sin(ph)*Math.cos(th)
+    );
+    // never clip through the ground
+    const floor = heightAt(camPos.x, camPos.z) + 8;
+    if(camPos.y < floor) camPos.y = floor;
+
+    camera.position.lerp(camPos, 0.09);
+    camera.lookAt(ctl.target.x, ctl.target.y + (ctl.ground?4:18), ctl.target.z);
+  }
+  renderer.render(scene, camera);
+}
+animate();
+
+/* ============================================================
+   10. BOOT
+   ============================================================ */
+async function boot(){
+  $('enable').classList.add('hide');
+  statusEl.textContent = 'Finding you';
+
+  let loc = await getLocation();
+  let label = '';
+
+  if(!loc){
+    statusEl.textContent = 'Approximating by network';
+    const f = await ipFallback();
+    if(f){ loc = f; label = f.label || ''; }
+  }
+
+  let el, real = true;
+  if(loc){
+    if(!label){
+      statusEl.textContent = 'Naming the place';
+      label = await reverseGeocode(loc.lat, loc.lon);
+    }
+    statusEl.textContent = 'Reading the land';
+    try{ el = await fetchElevation(loc.lat, loc.lon); }
+    catch(e){ el = proceduralElevation(); real = false; }
+  }else{
+    el = proceduralElevation(); real = false;
+    label = 'An imagined place';
+  }
+
+  statusEl.textContent = 'Growing grass';
+  await new Promise(r=>setTimeout(r,60));
+  buildTerrain(el);
+
+  // frame the world
+  ctl.target.set(0,heightAt(0,0),0);
+  ctl.dist = 470; ctl.phi = 0.62; ctl.theta = 0.7;
+  camera.position.set(300, 400, 300);
+
+  $('placeName').textContent = label || 'Your terrain';
+  $('placeMeta').textContent = loc
+    ? `${loc.lat.toFixed(3)}, ${loc.lon.toFixed(3)} · ${SPAN_KM}km · `
+      + (real ? `${Math.round(minH)}–${Math.round(maxH)}m` : 'simulated relief')
+    : 'procedurally generated';
+
+  $('place').style.display='block';
+  $('panel').style.display='block';
+  $('toggle').style.display='block';
+  $('hint').style.display='block';
+  renderer.domElement.style.cursor='grab';
+  started = true;
+  $('loader').classList.add('gone');
+  setTimeout(()=>$('loader').remove(), 1000);
+}
+
+$('enable').addEventListener('click', boot);
