@@ -114,27 +114,53 @@ const statusEl = $('status'), subEl = $('sub');
    ============================================================ */
 function getLocation(){
   return new Promise(resolve=>{
-    if(!navigator.geolocation) return resolve(null);
-    navigator.geolocation.getCurrentPosition(
-      p => resolve({lat:p.coords.latitude, lon:p.coords.longitude}),
-      () => resolve(null),
-      {enableHighAccuracy:true, timeout:10000, maximumAge:600000}
-    );
+    // file:// and plain http:// are not secure contexts — the API is blocked
+    // or silently never fires a callback. Skip it and let the IP path run.
+    if(!window.isSecureContext || !navigator.geolocation) return resolve(null);
+
+    let done = false;
+    const finish = v => { if(!done){ done = true; resolve(v); } };
+
+    // hard watchdog: some browsers never invoke either callback
+    setTimeout(()=>finish(null), 9000);
+
+    try{
+      navigator.geolocation.getCurrentPosition(
+        p => finish({lat:p.coords.latitude, lon:p.coords.longitude}),
+        () => finish(null),
+        {enableHighAccuracy:true, timeout:8000, maximumAge:600000}
+      );
+    }catch(e){ finish(null); }
   });
 }
 
+/* fetch that always settles */
+function tfetch(url, ms=8000){
+  return Promise.race([
+    fetch(url),
+    new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')), ms))
+  ]);
+}
+
 async function ipFallback(){
-  try{
-    const r = await fetch('https://ipapi.co/json/');
-    const j = await r.json();
-    if(j.latitude) return {lat:j.latitude, lon:j.longitude, label:`${j.city}, ${j.region_code}`};
-  }catch(e){}
+  const eps = ['https://ipapi.co/json/','https://ipwho.is/'];
+  for(const u of eps){
+    try{
+      const r = await tfetch(u, 6000);
+      const j = await r.json();
+      const lat = j.latitude, lon = j.longitude;
+      if(typeof lat === 'number'){
+        const city = j.city||'', reg = j.region_code||j.region||'';
+        return {lat, lon, label:[city,reg].filter(Boolean).join(', ')};
+      }
+    }catch(e){}
+  }
   return null;
 }
 
 async function reverseGeocode(lat,lon){
   try{
-    const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=12`);
+    const r = await tfetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=12`, 6000);
     const j = await r.json();
     const a = j.address||{};
     const city = a.city||a.town||a.village||a.hamlet||a.suburb||a.county||'';
@@ -161,7 +187,7 @@ async function fetchElevation(lat, lon){
   const CH = 100, out = new Float32Array(N*N);
   for(let s=0; s<lats.length; s+=CH){
     const la = lats.slice(s,s+CH).join(','), lo = lons.slice(s,s+CH).join(',');
-    const r = await fetch(`https://api.open-meteo.com/v1/elevation?latitude=${la}&longitude=${lo}`);
+    const r = await tfetch(`https://api.open-meteo.com/v1/elevation?latitude=${la}&longitude=${lo}`, 10000);
     if(!r.ok) throw new Error('elevation http '+r.status);
     const j = await r.json();
     j.elevation.forEach((v,k)=> out[s+k] = v);
@@ -642,4 +668,26 @@ async function boot(){
   setTimeout(()=>$('loader').remove(), 1000);
 }
 
-$('enable').addEventListener('click', boot);
+$('enable').addEventListener('click', ()=>{
+  boot().catch(err=>{
+    console.error('boot failed:', err);
+    // never strand the user on the loader — build something regardless
+    try{
+      if(!terrain) buildTerrain(proceduralElevation());
+      ctl.target.set(0, heightAt(0,0), 0);
+      ctl.dist = 470; ctl.phi = 0.62;
+      $('placeName').textContent = 'An imagined place';
+      $('placeMeta').textContent = 'location unavailable · procedurally generated';
+      $('place').style.display='block';
+      $('panel').style.display='block';
+      $('toggle').style.display='block';
+      $('hint').style.display='block';
+      started = true;
+      $('loader').classList.add('gone');
+      setTimeout(()=>$('loader').remove(), 1000);
+    }catch(e2){
+      statusEl.textContent = 'Something broke';
+      subEl.textContent = String(err && err.message || err);
+    }
+  });
+});
