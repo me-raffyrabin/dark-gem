@@ -87,12 +87,18 @@
   </div>
 </div>
 
-<script type="importmap">
-{ "imports": { "three": "https://cdnjs.cloudflare.com/ajax/libs/three/0.160.0/three.module.min.js" } }
-</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three/0.160.0/three.min.js"></script>
 
-<script type="module">
-import * as THREE from 'three';
+<script>
+(function(){
+if (typeof THREE === 'undefined') {
+  var pl = document.getElementById('plate');
+  pl.innerHTML = '<div style="text-align:center;padding:24px;max-width:34ch">' +
+    '<h1 style="font-size:26px;letter-spacing:.12em;margin-bottom:14px;color:#efe3c8">Everwyn didn\u2019t load</h1>' +
+    '<p style="letter-spacing:.08em;text-transform:none;font-size:13px;line-height:1.7;opacity:.75">' +
+    'The 3D library couldn\u2019t be reached. Open this file in Safari or Chrome, or check the connection, then reload.</p></div>';
+  return;
+}
 
 /* ============================================================
    EVERWYN — an endless medieval town
@@ -843,6 +849,7 @@ const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 /* ================= loop ================= */
 const clock = new THREE.Clock();
+let shown = false;
 
 function frame() {
   requestAnimationFrame(frame);
@@ -905,10 +912,12 @@ function frame() {
 
   wardEl.textContent = Math.floor(leagues / 10).toLocaleString();
   renderer.render(scene, camera);
+
+  if (!shown) { shown = true; document.getElementById('plate').classList.add('gone'); }
 }
 
 frame();
-requestAnimationFrame(() => document.getElementById('plate').classList.add('gone'));
+})();
 </script>
 </body>
 </html>
