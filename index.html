@@ -1,1393 +1,914 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-<meta name="theme-color" content="#0a0710" />
-<title>Veilwalker — The Realm Above</title>
-
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
-
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Everwyn — an endless town</title>
 <style>
   :root{
-    --void:#0a0710;
-    --deep:#131022;
-    --midnight:#1d1735;
-    --gold:#e3b04b;
-    --ember:#d9603a;
-    --arcane:#6b4fa3;
-    --mist:#8ea3c7;
-    --parchment:#efe6d0;
+    --ink:#241b2e;
+    --parch:#efe3c8;
+    --moss:#6f8f5a;
+    --ember:#d98243;
+    --arcane:#8f7ad6;
   }
-  *{ margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-  html,body{ height:100%; overflow:hidden; background:var(--void); }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;overflow:hidden;background:#101018;}
   body{
-    font-family:'Inter',system-ui,sans-serif;
-    color:var(--parchment);
-    height:100dvh;
-    display:grid;
-    grid-template-rows:1fr 1fr;
-    position:relative;
+    font-family:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
+    color:var(--parch);
+    -webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;
+  }
+  #scene{position:fixed;inset:0;display:block;cursor:grab;}
+  #scene.dragging{cursor:grabbing;}
+
+  /* --- vignette + parchment grain over the whole view --- */
+  #veil{
+    position:fixed;inset:0;pointer-events:none;
+    box-shadow:inset 0 0 22vmax rgba(20,12,30,.55);
+    mix-blend-mode:multiply;
   }
 
-  /* ---------- TOP: the Realm vista ---------- */
-  #vistaWrap{ position:relative; overflow:hidden; background:var(--void); }
-  #vista{ position:absolute; inset:0; width:100%; height:100%; display:block; }
-
-  .hud{ position:absolute; z-index:5; pointer-events:none; }
-
-  .realm-chip{
-    top:calc(env(safe-area-inset-top, 0px) + 12px); left:14px;
-    display:flex; flex-direction:column; gap:1px;
-    padding:8px 14px 9px;
-    background:linear-gradient(160deg, rgba(19,16,34,.82), rgba(10,7,16,.65));
-    border:1px solid rgba(227,176,75,.35);
-    border-radius:3px;
-    backdrop-filter:blur(6px);
-    -webkit-backdrop-filter:blur(6px);
-    box-shadow:0 4px 18px rgba(0,0,0,.5), inset 0 0 12px rgba(227,176,75,.06);
+  /* --- loading plate --- */
+  #plate{
+    position:fixed;inset:0;display:grid;place-items:center;
+    background:radial-gradient(120% 90% at 50% 40%,#2c2440 0%,#14101d 70%);
+    z-index:10;transition:opacity .9s ease .2s;
   }
-  .realm-chip .eyebrow{
-    font-size:9px; letter-spacing:.22em; text-transform:uppercase;
-    color:var(--mist); font-weight:500;
+  #plate.gone{opacity:0;pointer-events:none}
+  .sigil{width:64px;height:64px;margin:0 auto 22px;position:relative}
+  .sigil i{
+    position:absolute;inset:0;border:1.5px solid var(--arcane);border-radius:50%;
+    opacity:.5;animation:spin 5.5s linear infinite;
   }
-  .realm-chip .name{
-    font-family:'Cormorant Garamond',serif;
-    font-size:21px; font-weight:600; line-height:1.1;
-    color:var(--gold);
-    text-shadow:0 0 14px rgba(227,176,75,.35);
-    transition:opacity .5s ease;
-  }
-  .realm-chip .name.fading{ opacity:0; }
-
-  .compass{
-    top:calc(env(safe-area-inset-top, 0px) + 12px); right:14px;
-    width:52px; height:52px;
-  }
-  .compass svg{ width:100%; height:100%; overflow:visible; }
-  #compassRose{ transform-origin:50% 50%; transition:transform .12s linear; }
-
-  .coord-bar{
-    left:50%; bottom:26px; transform:translateX(-50%);
-    display:flex; align-items:center; gap:10px;
-    padding:6px 16px;
-    background:rgba(10,7,16,.6);
-    border:1px solid rgba(227,176,75,.25);
-    border-radius:2px;
-    backdrop-filter:blur(4px);
-    -webkit-backdrop-filter:blur(4px);
-    font-size:10.5px; letter-spacing:.14em; font-weight:500;
-    color:var(--parchment); white-space:nowrap;
-  }
-  .coord-bar .rune{ color:var(--gold); font-size:9px; }
-
-  .hint-toast{
-    left:50%; top:50%; transform:translate(-50%,-50%);
-    padding:10px 20px;
-    font-family:'Cormorant Garamond',serif; font-style:italic;
-    font-size:16px; color:var(--parchment);
-    background:rgba(10,7,16,.55);
-    border:1px solid rgba(227,176,75,.3);
-    border-radius:2px;
-    backdrop-filter:blur(5px);
-    -webkit-backdrop-filter:blur(5px);
-    opacity:0; transition:opacity 1s ease;
-    text-align:center; max-width:78%;
-  }
-  .hint-toast.show{ opacity:1; }
-
-  /* ---------- DIVIDER: the Threshold ---------- */
-  .threshold{
-    position:absolute; left:0; right:0; top:50%;
-    height:0; z-index:20; pointer-events:none;
-  }
-  .threshold .bar{
-    position:absolute; left:0; right:0; top:-2px; height:4px;
-    background:linear-gradient(90deg,
-      transparent, rgba(227,176,75,.15) 12%,
-      var(--gold) 46%, #f6dfa4 50%, var(--gold) 54%,
-      rgba(227,176,75,.15) 88%, transparent);
-    box-shadow:0 0 16px rgba(227,176,75,.5), 0 0 46px rgba(217,96,58,.25);
-  }
-  .threshold .gem{
-    position:absolute; left:50%; top:0; transform:translate(-50%,-50%) rotate(45deg);
-    width:16px; height:16px;
-    background:linear-gradient(135deg, #f6dfa4, var(--gold) 55%, var(--ember));
-    border:1px solid rgba(246,223,164,.9);
-    box-shadow:0 0 18px rgba(227,176,75,.85), 0 0 44px rgba(217,96,58,.5);
-    animation:gemPulse 4.7s ease-in-out infinite;
-  }
-  @keyframes gemPulse{
-    0%,100%{ box-shadow:0 0 14px rgba(227,176,75,.7), 0 0 34px rgba(217,96,58,.35); }
-    50%{ box-shadow:0 0 26px rgba(227,176,75,1), 0 0 64px rgba(217,96,58,.6); }
+  .sigil i:nth-child(2){inset:12px;border-color:var(--ember);animation-duration:3.4s;animation-direction:reverse}
+  .sigil i:nth-child(3){inset:24px;border-color:var(--moss);animation-duration:7s}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  #plate p{text-align:center;letter-spacing:.42em;text-transform:uppercase;font-size:11px;opacity:.72}
+  #plate h1{
+    text-align:center;font-size:clamp(30px,7vw,58px);font-weight:400;
+    letter-spacing:.14em;margin-bottom:10px;
+    background:linear-gradient(180deg,#fff6df,#c9a86a);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
   }
 
-  /* ---------- BOTTOM: the mortal map ---------- */
-  #mapWrap{ position:relative; overflow:hidden; background:var(--deep); touch-action:none; }
-  #map{ position:absolute; inset:0; }
-  #ghostMap{ position:absolute; inset:0; width:100%; height:100%; display:none; }
-  /* alchemical dark transmutation of the base cartography */
-  #map .maplibregl-canvas{
-    filter:invert(.92) hue-rotate(205deg) saturate(.55) brightness(.82) contrast(1.08);
+  /* --- corner plaque --- */
+  #plaque{
+    position:fixed;left:20px;bottom:18px;z-index:5;pointer-events:none;
+    line-height:1.6;text-shadow:0 1px 3px rgba(0,0,0,.8);
   }
-  .map-tint{
-    position:absolute; inset:0; pointer-events:none; z-index:2;
-    background:
-      radial-gradient(120% 90% at 50% 0%, rgba(227,176,75,.10), transparent 55%),
-      radial-gradient(140% 110% at 50% 115%, rgba(107,79,163,.18), transparent 60%);
-    mix-blend-mode:screen;
+  #plaque .name{font-size:19px;letter-spacing:.22em;text-transform:uppercase}
+  #plaque .hint{font-size:11px;letter-spacing:.14em;opacity:.6;text-transform:uppercase}
+  #ward{
+    position:fixed;right:20px;bottom:18px;z-index:5;text-align:right;
+    font-size:11px;letter-spacing:.14em;opacity:.55;text-transform:uppercase;
+    text-shadow:0 1px 3px rgba(0,0,0,.8);pointer-events:none;
   }
-  .map-vignette{
-    position:absolute; inset:0; pointer-events:none; z-index:2;
-    box-shadow:inset 0 0 90px rgba(10,7,16,.9);
-  }
-
-  .maplibregl-ctrl-attrib{
-    background:rgba(10,7,16,.55)!important;
-    font-size:9px!important;
-  }
-  .maplibregl-ctrl-attrib a{ color:var(--mist)!important; }
-
-  .recenter{
-    position:absolute; right:14px;
-    bottom:calc(env(safe-area-inset-bottom, 0px) + 22px);
-    z-index:6;
-    width:46px; height:46px;
-    display:flex; align-items:center; justify-content:center;
-    background:linear-gradient(160deg, rgba(29,23,53,.92), rgba(10,7,16,.88));
-    border:1px solid rgba(227,176,75,.5);
-    border-radius:50%;
-    color:var(--gold);
-    box-shadow:0 4px 16px rgba(0,0,0,.6), inset 0 0 10px rgba(227,176,75,.08);
-    cursor:pointer;
-  }
-  .recenter:active{ transform:scale(.93); }
-  .recenter svg{ width:20px; height:20px; }
-
-  .map-label{
-    position:absolute; left:14px;
-    bottom:calc(env(safe-area-inset-bottom, 0px) + 24px);
-    z-index:6; pointer-events:none;
-    font-size:9px; letter-spacing:.24em; text-transform:uppercase;
-    color:var(--mist); font-weight:500;
-    display:flex; align-items:center; gap:8px;
-  }
-  .map-label::before{
-    content:""; width:22px; height:1px;
-    background:linear-gradient(90deg, var(--gold), transparent);
-  }
-
-  /* user rune marker */
-  .rune-marker{ width:26px; height:26px; position:relative; }
-  .rune-marker .core{
-    position:absolute; inset:7px;
-    background:radial-gradient(circle, #f6dfa4 0%, var(--gold) 55%, var(--ember) 100%);
-    border-radius:50%;
-    box-shadow:0 0 12px rgba(227,176,75,.9);
-  }
-  .rune-marker .ring{
-    position:absolute; inset:0; border:1.5px solid var(--gold);
-    border-radius:50%;
-    animation:runePulse 2.6s ease-out infinite;
-  }
-  .rune-marker .ring:nth-child(2){ animation-delay:1.3s; }
-  @keyframes runePulse{
-    0%{ transform:scale(.5); opacity:1; }
-    100%{ transform:scale(2.4); opacity:0; }
-  }
-
-  .geo-note{
-    position:absolute; left:50%; top:14px; transform:translateX(-50%);
-    z-index:6; padding:6px 14px;
-    font-size:10px; letter-spacing:.08em; color:var(--mist);
-    background:rgba(10,7,16,.7);
-    border:1px solid rgba(142,163,199,.3);
-    border-radius:2px;
-    opacity:0; transition:opacity .6s ease;
-    pointer-events:none; white-space:nowrap;
-    max-width:92%; overflow:hidden; text-overflow:ellipsis;
-  }
-  .geo-note.show{ opacity:1; }
-
-  /* ---------- DIAGNOSTICS (WhatsUpDocMD-style raw error surfacing) ---------- */
-  .diag-btn{
-    position:absolute; left:14px;
-    bottom:calc(env(safe-area-inset-bottom, 0px) + 74px);
-    z-index:40;
-    width:34px; height:34px;
-    display:flex; align-items:center; justify-content:center;
-    background:rgba(10,7,16,.8);
-    border:1px solid rgba(142,163,199,.35);
-    border-radius:50%;
-    color:var(--mist); font-size:14px;
-    cursor:pointer;
-  }
-  .diag-btn .badge{
-    position:absolute; top:-4px; right:-4px;
-    min-width:15px; height:15px; padding:0 3px;
-    display:none; align-items:center; justify-content:center;
-    background:var(--ember); color:#fff;
-    border-radius:8px; font-size:9px; font-weight:600;
-  }
-  .diag-btn.has-errors{ border-color:var(--ember); color:var(--ember); }
-  .diag-btn.has-errors .badge{ display:flex; }
-
-  .diag-panel{
-    position:absolute; left:10px; right:10px;
-    bottom:calc(env(safe-area-inset-bottom, 0px) + 116px);
-    max-height:42%;
-    z-index:41;
-    display:none; flex-direction:column;
-    background:rgba(8,6,14,.96);
-    border:1px solid rgba(227,176,75,.4);
-    border-radius:4px;
-    box-shadow:0 8px 30px rgba(0,0,0,.8);
-    overflow:hidden;
-  }
-  .diag-panel.open{ display:flex; }
-  .diag-head{
-    display:flex; align-items:center; justify-content:space-between;
-    padding:8px 12px;
-    border-bottom:1px solid rgba(227,176,75,.2);
-    font-size:10px; letter-spacing:.18em; text-transform:uppercase;
-    color:var(--gold);
-  }
-  .diag-head .actions{ display:flex; gap:8px; }
-  .diag-head button{
-    background:none; border:1px solid rgba(142,163,199,.4);
-    color:var(--mist); font-size:9px; letter-spacing:.1em;
-    padding:3px 9px; border-radius:2px; cursor:pointer;
-    font-family:'Inter',sans-serif;
-  }
-  #diagLog{
-    overflow-y:auto; -webkit-overflow-scrolling:touch;
-    padding:8px 12px;
-    font-family:ui-monospace,'SF Mono',Menlo,monospace;
-    font-size:10px; line-height:1.55;
-    color:#b9c2d8; white-space:pre-wrap; word-break:break-word;
-  }
-  #diagLog .err{ color:#f08a6a; }
-  #diagLog .ok{ color:#a8c48a; }
-
-  /* ---------- WAYSTONE (dropped pin) ---------- */
-  .waystone-chip{
-    left:50%; bottom:64px; transform:translateX(-50%);
-    display:none; align-items:center; gap:9px;
-    padding:5px 8px 5px 14px;
-    background:rgba(10,7,16,.72);
-    border:1px solid rgba(227,176,75,.5);
-    border-radius:2px;
-    backdrop-filter:blur(4px);
-    -webkit-backdrop-filter:blur(4px);
-    font-size:10.5px; letter-spacing:.1em; font-weight:500;
-    color:var(--gold); white-space:nowrap;
-    pointer-events:auto;
-  }
-  .waystone-chip.show{ display:flex; }
-  .waystone-chip .ws-gem{
-    font-size:9px;
-    animation:wsGemPulse 2.3s ease-in-out infinite;
-  }
-  @keyframes wsGemPulse{ 0%,100%{ opacity:.6; } 50%{ opacity:1; } }
-  .waystone-chip button{
-    background:none; border:none; cursor:pointer;
-    color:var(--mist); font-size:12px; line-height:1;
-    padding:4px 7px;
-  }
-
-  .waystone-pin{ width:26px; height:36px; position:relative; }
-  .waystone-pin .head{
-    position:absolute; left:50%; top:4px;
-    width:14px; height:14px;
-    transform:translateX(-50%) rotate(45deg);
-    background:linear-gradient(135deg, #f6dfa4, var(--gold) 60%, var(--ember));
-    border:1px solid rgba(246,223,164,.95);
-    box-shadow:0 0 12px rgba(227,176,75,.9), 0 0 30px rgba(217,96,58,.4);
-    animation:wsHover 3.1s ease-in-out infinite;
-  }
-  .waystone-pin .stem{
-    position:absolute; left:50%; top:17px;
-    width:1.5px; height:15px;
-    transform:translateX(-50%);
-    background:linear-gradient(180deg, var(--gold), transparent);
-  }
-  .waystone-pin .base{
-    position:absolute; left:50%; bottom:0;
-    width:12px; height:4px;
-    transform:translateX(-50%);
-    background:radial-gradient(ellipse, rgba(227,176,75,.6), transparent 70%);
-  }
-  @keyframes wsHover{
-    0%,100%{ transform:translateX(-50%) rotate(45deg) translateY(0); }
-    50%{ transform:translateX(-50%) rotate(45deg) translateY(-2.5px); }
-  }
-
-  .drop-ripple{
-    position:absolute; z-index:30;
-    width:12px; height:12px; margin:-6px 0 0 -6px;
-    border:1.5px solid var(--gold);
-    border-radius:50%;
-    pointer-events:none;
-    animation:dropRipple .7s ease-out forwards;
-  }
-  @keyframes dropRipple{
-    0%{ transform:scale(.4); opacity:1; }
-    100%{ transform:scale(4.5); opacity:0; }
-  }
-
-  @media (prefers-reduced-motion: reduce){
-    .threshold .gem{ animation:none; }
-    .rune-marker .ring{ animation:none; opacity:.4; transform:scale(1.4); }
-    .waystone-pin .head{ animation:none; }
-    .waystone-chip .ws-gem{ animation:none; }
-  }
+  #ward b{display:block;font-size:17px;font-weight:400;letter-spacing:.1em;opacity:.95}
+  @media (max-width:520px){ #ward{display:none} }
 </style>
 </head>
 <body>
 
-  <!-- TOP HALF — the Realm -->
-  <section id="vistaWrap" aria-label="Fantasy realm view">
-    <canvas id="vista"></canvas>
+<canvas id="scene"></canvas>
+<div id="veil"></div>
 
-    <div class="hud realm-chip">
-      <span class="eyebrow">Realm sighted</span>
-      <span class="name" id="realmName">The Veiled Reach</span>
-    </div>
+<div id="plaque">
+  <div class="name">Everwyn</div>
+  <div class="hint">Drag to wander &middot; scroll to rise</div>
+</div>
+<div id="ward"><b>∞</b>leagues walked</div>
 
-    <div class="hud compass" aria-hidden="true">
-      <svg viewBox="0 0 52 52">
-        <circle cx="26" cy="26" r="24" fill="rgba(10,7,16,.6)" stroke="rgba(227,176,75,.4)" stroke-width="1"/>
-        <g id="compassRose">
-          <path d="M26 6 L29 24 L26 22 L23 24 Z" fill="#e3b04b"/>
-          <path d="M26 46 L29 28 L26 30 L23 28 Z" fill="rgba(142,163,199,.6)"/>
-          <circle cx="26" cy="26" r="2.4" fill="#f6dfa4"/>
-        </g>
-        <text x="26" y="4" text-anchor="middle" font-size="7" fill="#e3b04b" font-family="Inter">N</text>
-      </svg>
-    </div>
-
-    <div class="hud coord-bar">
-      <span class="rune">◆</span>
-      <span id="coordText">— · —</span>
-      <span class="rune">◆</span>
-    </div>
-
-    <div class="hud waystone-chip" id="waystoneChip">
-      <span class="ws-gem">◆</span>
-      <span id="waystoneText">Waystone</span>
-      <button id="waystoneClear" aria-label="Remove waystone">✕</button>
-    </div>
-
-    <div class="hud hint-toast" id="hintToast">
-      Drag the map to wander — press &amp; hold to plant a waystone
-    </div>
-  </section>
-
-  <!-- THE THRESHOLD -->
-  <div class="threshold" aria-hidden="true">
-    <div class="bar"></div>
-    <div class="gem"></div>
+<div id="plate">
+  <div>
+    <div class="sigil"><i></i><i></i><i></i></div>
+    <h1>Everwyn</h1>
+    <p>raising the rooftops…</p>
   </div>
+</div>
 
-  <!-- BOTTOM HALF — the mortal map -->
-  <section id="mapWrap" aria-label="Interactive map">
-    <div id="map"></div>
-    <canvas id="ghostMap"></canvas>
-    <div class="map-tint"></div>
-    <div class="map-vignette"></div>
-    <div class="map-label" id="mapLabel">Mortal Cartography</div>
-    <div class="geo-note" id="geoNote"></div>
-    <button class="recenter" id="recenterBtn" aria-label="Return to my location">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
-        <circle cx="12" cy="12" r="7"/>
-        <circle cx="12" cy="12" r="2.2" fill="currentColor" stroke="none"/>
-        <path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
-      </svg>
-    </button>
+<script type="importmap">
+{ "imports": { "three": "https://cdnjs.cloudflare.com/ajax/libs/three/0.160.0/three.module.min.js" } }
+</script>
 
-    <button class="diag-btn" id="diagBtn" aria-label="Diagnostics">
-      ✦<span class="badge" id="diagBadge">0</span>
-    </button>
-    <div class="diag-panel" id="diagPanel">
-      <div class="diag-head">
-        <span>Scrying Glass · Diagnostics</span>
-        <span class="actions">
-          <button id="diagCopy">Copy</button>
-          <button id="diagClose">Close</button>
-        </span>
-      </div>
-      <div id="diagLog"></div>
-    </div>
-  </section>
-
-<script>
-/* =====================================================================
-   VEILWALKER v2 — split-screen mockup
-   Boot order matters: diagnostics first, vista second (never blocked),
-   MapLibre loaded async with multi-CDN fallback, and a touch-drag
-   ghost map if every CDN fails. Raw errors surface on-screen.
-   Design canon: void #0a0710 · gold #e3b04b · ember #d9603a
-   ===================================================================== */
+<script type="module">
+import * as THREE from 'three';
 
 /* ============================================================
-   0. SCRYING GLASS — on-screen diagnostics (loads before all)
+   EVERWYN — an endless medieval town
+   Infinite scroll via a wrapping grid of tiles: the town is a
+   fixed pool of blocks that leapfrog around the camera, so you
+   can wander forever without allocating anything new.
    ============================================================ */
-var diagErrCount = 0;
-function logDiag(msg, level){
-  try{
-    var log = document.getElementById('diagLog');
-    var line = document.createElement('div');
-    var ts = new Date().toISOString().slice(11, 19);
-    line.textContent = '[' + ts + '] ' + msg;
-    if (level === 'err'){
-      line.className = 'err';
-      diagErrCount++;
-      var btn = document.getElementById('diagBtn');
-      btn.classList.add('has-errors');
-      document.getElementById('diagBadge').textContent = diagErrCount;
-      document.getElementById('diagPanel').classList.add('open');
-    } else if (level === 'ok'){
-      line.className = 'ok';
+
+const TILE   = 12;      // world units per town block
+const GRID   = 11;      // tiles across the pool (odd = centered)
+const HALF   = (GRID - 1) / 2;
+const SPAN   = GRID * TILE;
+
+const PALETTE = {
+  sky      : 0x2b2740,
+  fog      : 0x3c3a56,
+  grass    : 0x5f7f4e,
+  grassDim : 0x4d6b40,
+  road     : 0x6b6154,
+  roadEdge : 0x574f45,
+  water    : 0x3f6f8a,
+  plaster  : [0xe8dcc0, 0xdccBa4, 0xe3d3b2, 0xd6c6a8],
+  timber   : [0x4a3527, 0x3b2a1e, 0x55402c],
+  roofRed  : [0x8c4436, 0x7a3a2d, 0x9c5140],
+  roofSlate: [0x4d5566, 0x3f4757, 0x59617a],
+  thatch   : [0xb9964f, 0xa8853f, 0xc9a75c],
+  stone    : [0x8a8578, 0x7b766a, 0x99937f],
+  wood     : 0x6b4f35,
+  leafA    : 0x3f6b3a,
+  leafB    : 0x4f7d43,
+  leafC    : 0x355c36,
+  magic    : 0x9d86ff,
+  ember    : 0xffab5e,
+};
+
+const pick = (arr, r) => arr[Math.floor(r * arr.length) % arr.length];
+
+/* ---------- deterministic hash so every tile is stable ---------- */
+function hash(x, y, s = 0) {
+  let h = x * 374761393 + y * 668265263 + s * 2246822519;
+  h = (h ^ (h >>> 13)) * 1274126177;
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+}
+function rngAt(x, y) {
+  let i = 0;
+  return () => hash(x, y, ++i);
+}
+
+/* ================= renderer / scene ================= */
+const canvas   = document.getElementById('scene');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias:true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(PALETTE.sky);
+scene.fog = new THREE.Fog(PALETTE.fog, 46, 108);
+
+/* isometric-ish camera, like the original's fixed 3/4 view */
+let aspect = innerWidth / innerHeight;
+let zoom   = 15;
+const camera = new THREE.OrthographicCamera(-zoom*aspect, zoom*aspect, zoom, -zoom, 0.1, 400);
+camera.position.set(60, 58, 60);
+camera.lookAt(0, 0, 0);
+
+/* ================= light ================= */
+scene.add(new THREE.HemisphereLight(0xbfd4ff, 0x3b3a2a, 1.05));
+
+const sun = new THREE.DirectionalLight(0xffe9c4, 1.5);
+sun.position.set(38, 60, 22);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+const s = 62;
+Object.assign(sun.shadow.camera, { left:-s, right:s, top:s, bottom:-s, near:1, far:190 });
+sun.shadow.bias = -0.0012;
+sun.shadow.normalBias = 0.03;
+scene.add(sun, sun.target);
+
+const moon = new THREE.DirectionalLight(0x8fa0ff, 0.35);
+moon.position.set(-40, 30, -30);
+scene.add(moon);
+
+/* ================= shared geometry & material cache ================= */
+const G = {
+  box  : new THREE.BoxGeometry(1,1,1),
+  cyl  : new THREE.CylinderGeometry(0.5,0.5,1,10),
+  cone : new THREE.ConeGeometry(0.5,1,10),
+  cone6: new THREE.ConeGeometry(0.5,1,6),
+  ico  : new THREE.IcosahedronGeometry(0.5,0),
+  ico1 : new THREE.IcosahedronGeometry(0.5,1),
+  sph  : new THREE.SphereGeometry(0.5,12,10),
+  plane: new THREE.PlaneGeometry(1,1),
+  tor  : new THREE.TorusGeometry(0.5,0.12,6,16),
+};
+const matCache = new Map();
+function mat(color, opts = {}) {
+  const key = color + '|' + JSON.stringify(opts);
+  if (!matCache.has(key)) {
+    matCache.set(key, new THREE.MeshLambertMaterial({ color, ...opts }));
+  }
+  return matCache.get(key);
+}
+function glow(color, intensity = 1) {
+  const key = 'g' + color + intensity;
+  if (!matCache.has(key)) {
+    matCache.set(key, new THREE.MeshBasicMaterial({ color }));
+  }
+  return matCache.get(key);
+}
+
+/* small helper: add a shaped mesh to a group */
+function part(group, geo, material, px,py,pz, sx,sy,sz, rx=0,ry=0,rz=0, shadow=true) {
+  const m = new THREE.Mesh(geo, material);
+  m.position.set(px,py,pz);
+  m.scale.set(sx,sy,sz);
+  m.rotation.set(rx,ry,rz);
+  m.castShadow = shadow;
+  m.receiveShadow = shadow;
+  group.add(m);
+  return m;
+}
+
+/* ================= town piece builders =================
+   Every builder returns a Group centered on 0,0 within a TILE.
+   ====================================================== */
+
+/* --- crooked half-timbered house: jettied upper floor, steep roof --- */
+function buildHouse(r) {
+  const g = new THREE.Group();
+  const w = 2.6 + r() * 1.9;
+  const d = 2.4 + r() * 1.7;
+  const floors = 1 + (r() < 0.55 ? 1 : 0) + (r() < 0.2 ? 1 : 0);
+  const plasterM = mat(pick(PALETTE.plaster, r()));
+  const timberM  = mat(pick(PALETTE.timber, r()));
+  const roofM    = mat(r() < 0.45 ? pick(PALETTE.thatch, r()) : (r() < 0.5 ? pick(PALETTE.roofRed,r()) : pick(PALETTE.roofSlate, r())));
+  const stoneM   = mat(pick(PALETTE.stone, r()));
+
+  let y = 0, cw = w, cd = d;
+
+  // stone footing
+  part(g, G.box, stoneM, 0, 0.22, 0, cw*1.04, 0.44, cd*1.04);
+  y = 0.44;
+
+  for (let f = 0; f < floors; f++) {
+    const h = 1.5 + r()*0.5;
+    // each storey juts a bit further out — the signature medieval overhang
+    if (f > 0) { cw += 0.34; cd += 0.34; }
+    part(g, G.box, plasterM, 0, y + h/2, 0, cw, h, cd);
+
+    // corner posts + cross braces
+    const t = 0.14;
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+      part(g, G.box, timberM, sx*(cw/2-t/2), y+h/2, sz*(cd/2-t/2), t, h, t);
     }
-    log.appendChild(line);
-    log.scrollTop = log.scrollHeight;
-  }catch(e){ /* diagnostics must never crash the app */ }
-}
-window.addEventListener('error', function(e){
-  var src = e.filename ? e.filename.split('/').pop() + ':' + e.lineno : '(inline)';
-  logDiag('ERROR ' + (e.message || 'unknown') + ' @ ' + src, 'err');
-});
-window.addEventListener('unhandledrejection', function(e){
-  var r = e.reason;
-  logDiag('PROMISE ' + (r && r.message ? r.message : String(r)), 'err');
-});
-document.getElementById('diagBtn').addEventListener('click', function(){
-  document.getElementById('diagPanel').classList.toggle('open');
-});
-document.getElementById('diagClose').addEventListener('click', function(){
-  document.getElementById('diagPanel').classList.remove('open');
-});
-document.getElementById('diagCopy').addEventListener('click', function(){
-  var text = document.getElementById('diagLog').innerText;
-  if (navigator.clipboard && navigator.clipboard.writeText){
-    navigator.clipboard.writeText(text).then(
-      function(){ logDiag('log copied to clipboard', 'ok'); },
-      function(){ window.prompt('Copy diagnostics:', text); }
-    );
-  } else {
-    window.prompt('Copy diagnostics:', text);
-  }
-});
-logDiag('boot · ua: ' + navigator.userAgent.slice(0, 90));
-
-/* ============================================================
-   1. SHARED STATE + UTILITIES
-   ============================================================ */
-var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-function mulberry32(a){
-  return function(){
-    a |= 0; a = a + 0x6D2B79F5 | 0;
-    var t = Math.imul(a ^ a >>> 15, 1 | a);
-    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
-    return ((t ^ t >>> 14) >>> 0) / 4294967296;
-  };
-}
-function hash1(i, seed){ return mulberry32((i * 2654435761) ^ seed)(); }
-function smooth(t){ return t * t * (3 - 2 * t); }
-function vnoise(x, seed){
-  var i = Math.floor(x), f = x - i;
-  return hash1(i, seed) * (1 - smooth(f)) + hash1(i + 1, seed) * smooth(f);
-}
-function fbm(x, seed){
-  return vnoise(x, seed) * .55 + vnoise(x * 2.13, seed ^ 0x9e37) * .28 + vnoise(x * 4.7, seed ^ 0x51f2) * .17;
-}
-function lerp(a, b, t){ return a + (b - a) * t; }
-
-var SYL_A = ['Vor','Ael','Thar','Nym','Kor','Mal','Ish','Dra','Vel','Umb','Cael','Ryn','Orr','Zar','Eth','Syl'];
-var SYL_B = ['athel','mar','\u2019dun','ath','oreth','wyn','gard','vaal','iel','myr','\u2019kesh','anor'];
-var REALM_KIND = ['Reach of','Vale of','Dominion of','Marches of','Hollow of','Crown of'];
-function realmNameFor(cx, cy){
-  var r = mulberry32((cx * 73856093) ^ (cy * 19349663) ^ 0xDA7A);
-  return REALM_KIND[Math.floor(r() * REALM_KIND.length)] + ' ' +
-         SYL_A[Math.floor(r() * SYL_A.length)] + SYL_B[Math.floor(r() * SYL_B.length)];
-}
-
-var FALLBACK = { lng:-71.0589, lat:42.3601 }; /* Boston */
-var target = { lng:FALLBACK.lng, lat:FALLBACK.lat, bearing:0, zoom:15.4 };
-var userPos = { lng:FALLBACK.lng, lat:FALLBACK.lat };
-var cur = { lateral:0, forward:0, bearing:0, zScale:1 };
-var scene = { water:0, forest:0, urban:.4, road:.4 };
-var sceneCur = { water:0, forest:0, urban:.4, road:.4 };
-var windVX = 0, lastLateral = 0, realmCell = null;
-var map = null, mapReady = false, userMarker = null;
-var pin = null;              /* { lng, lat } — the dropped waystone */
-var pinMarker = null;        /* maplibre marker when map mode active */
-
-/* ---------- waystone helpers ---------- */
-function fmtDist(m){
-  return m < 1000 ? Math.round(m) + ' m' : (m / 1000).toFixed(1) + ' km';
-}
-/* flat-earth approx is plenty at city scale */
-function pinDelta(){
-  if (!pin) return null;
-  var latR = target.lat * Math.PI / 180;
-  var dE = (pin.lng - target.lng) * 111320 * Math.cos(latR);
-  var dN = (pin.lat - target.lat) * 110540;
-  var dist = Math.sqrt(dE * dE + dN * dN);
-  var brgTo = Math.atan2(dE, dN) * 180 / Math.PI;          /* 0 = north */
-  var rel = ((brgTo - cur.bearing) % 360 + 540) % 360 - 180; /* [-180,180] vs view */
-  return { dist:dist, rel:rel };
-}
-
-function dropPin(lng, lat, screenX, screenY){
-  pin = { lng:lng, lat:lat };
-  if (navigator.vibrate) navigator.vibrate(30);
-  logDiag('waystone dropped: ' + fmtCoord(lat, lng), 'ok');
-
-  /* ripple at touch point */
-  if (screenX !== undefined){
-    var rip = document.createElement('div');
-    rip.className = 'drop-ripple';
-    rip.style.left = screenX + 'px';
-    rip.style.top = screenY + 'px';
-    document.getElementById('mapWrap').appendChild(rip);
-    setTimeout(function(){ rip.remove(); }, 750);
-  }
-
-  if (map){
-    if (pinMarker){ pinMarker.setLngLat([lng, lat]); }
-    else {
-      var el = document.createElement('div');
-      el.className = 'waystone-pin';
-      el.innerHTML = '<div class="head"></div><div class="stem"></div><div class="base"></div>';
-      pinMarker = new maplibregl.Marker({ element:el, anchor:'bottom' })
-        .setLngLat([lng, lat]).addTo(map);
+    // horizontal beltcourse
+    part(g, G.box, timberM, 0, y + h - 0.09, 0, cw+0.04, 0.18, cd+0.04);
+    // diagonal brace on the front face
+    if (r() < 0.7) {
+      part(g, G.box, timberM, 0, y+h/2, cd/2+0.01, cw*0.9, 0.12, 0.06, 0,0, 0.5 + r()*0.4);
     }
-  }
-  document.getElementById('waystoneChip').classList.add('show');
-  showGeoNote('Waystone planted — the realm will mark it', 2600);
-}
-function clearPin(){
-  pin = null;
-  if (pinMarker){ pinMarker.remove(); pinMarker = null; }
-  document.getElementById('waystoneChip').classList.remove('show');
-  logDiag('waystone cleared');
-}
-document.getElementById('waystoneClear').addEventListener('click', clearPin);
 
-/* update chip readout ~3x/s */
-setInterval(function(){
-  if (!pin) return;
-  var pd = pinDelta();
-  var dir = Math.abs(pd.rel) < 20 ? 'ahead'
-          : (pd.rel > 0 ? 'to your right' : 'to your left');
-  if (Math.abs(pd.rel) > 150) dir = 'behind you';
-  document.getElementById('waystoneText').textContent =
-    'Waystone \u00B7 ' + fmtDist(pd.dist) + ' \u00B7 ' + dir;
-}, 320);
-
-/* ---------- long-press to drop (works in map + ghost modes) ----------
-   Manual detection: MapLibre doesn't emit contextmenu reliably on iOS,
-   and this path must also work when the ghost map is active. */
-(function(){
-  var wrap = document.getElementById('mapWrap');
-  var lpTimer = null, lpStart = null, lpId = null, lpCount = 0;
-
-  function cancelLP(){
-    if (lpTimer){ clearTimeout(lpTimer); lpTimer = null; }
-    lpStart = null; lpId = null;
-  }
-  wrap.addEventListener('pointerdown', function(ev){
-    if (ev.target.closest('.recenter') || ev.target.closest('.diag-btn') ||
-        ev.target.closest('.diag-panel') || ev.target.closest('.waystone-chip')) return;
-    lpCount++;
-    if (lpCount > 1){ cancelLP(); return; }   /* pinch = not a long press */
-    lpId = ev.pointerId;
-    lpStart = { x:ev.clientX, y:ev.clientY };
-    lpTimer = setTimeout(function(){
-      lpTimer = null;
-      var rect = wrap.getBoundingClientRect();
-      var px = lpStart.x - rect.left, py = lpStart.y - rect.top;
-      var lnglat = screenToLngLat(px, py);
-      if (lnglat) dropPin(lnglat.lng, lnglat.lat, px, py);
-      lpStart = null;
-    }, 550);
-  }, true);
-  wrap.addEventListener('pointermove', function(ev){
-    if (!lpStart || ev.pointerId !== lpId) return;
-    if (Math.hypot(ev.clientX - lpStart.x, ev.clientY - lpStart.y) > 12) cancelLP();
-  }, true);
-  wrap.addEventListener('pointerup', function(ev){
-    lpCount = Math.max(0, lpCount - 1);
-    if (ev.pointerId === lpId) cancelLP();
-  }, true);
-  wrap.addEventListener('pointercancel', function(ev){
-    lpCount = Math.max(0, lpCount - 1);
-    if (ev.pointerId === lpId) cancelLP();
-  }, true);
-})();
-
-/* screen point (within #mapWrap) -> lng/lat in whichever mode is live */
-function screenToLngLat(px, py){
-  if (map){
-    try{
-      var ll = map.unproject([px, py]);
-      return { lng: ll.lng, lat: ll.lat };
-    }catch(e){ logDiag('unproject failed: ' + e.message, 'err'); return null; }
-  }
-  /* ghost mode: centre of view is target; convert px offset via m/px */
-  var mpp = 156543 * Math.cos(target.lat * Math.PI / 180) / Math.pow(2, target.zoom + 8) * 256;
-  var r = gcvs.parentElement.getBoundingClientRect();
-  var dxm = (px - r.width / 2) * mpp;
-  var dym = (r.height / 2 - py) * mpp;
-  var b = target.bearing * Math.PI / 180;
-  var east  = dxm * Math.cos(b) + dym * Math.sin(b);
-  var north = -dxm * Math.sin(b) + dym * Math.cos(b);
-  return {
-    lng: target.lng + east / (111320 * Math.cos(target.lat * Math.PI / 180)),
-    lat: target.lat + north / 110540
-  };
-}
-
-function showGeoNote(msg, ms){
-  var n = document.getElementById('geoNote');
-  n.textContent = msg;
-  n.classList.add('show');
-  clearTimeout(showGeoNote._t);
-  showGeoNote._t = setTimeout(function(){ n.classList.remove('show'); }, ms || 3600);
-}
-
-function fmtCoord(lat, lng){
-  var ns = lat >= 0 ? 'N' : 'S', ew = lng >= 0 ? 'E' : 'W';
-  return Math.abs(lat).toFixed(4) + '\u00B0 ' + ns + '  \u00B7  ' + Math.abs(lng).toFixed(4) + '\u00B0 ' + ew;
-}
-var realmNameEl = document.getElementById('realmName');
-function updateHUD(){
-  document.getElementById('coordText').textContent = fmtCoord(target.lat, target.lng);
-  document.getElementById('compassRose').style.transform = 'rotate(' + (-target.bearing) + 'deg)';
-  var cx = Math.floor(target.lng * 50), cy = Math.floor(target.lat * 50);
-  var key = cx + ',' + cy;
-  if (key !== realmCell){
-    realmCell = key;
-    realmNameEl.classList.add('fading');
-    setTimeout(function(){
-      realmNameEl.textContent = realmNameFor(cx, cy);
-      realmNameEl.classList.remove('fading');
-    }, 260);
-  }
-}
-
-/* ============================================================
-   2. THE VISTA — boots immediately, independent of the map
-   ============================================================ */
-var cvs = document.getElementById('vista');
-var ctx = cvs.getContext('2d');
-var W = 0, H = 0, DPR = 1, starCvs = null;
-
-function resizeVista(){
-  DPR = Math.min(2, window.devicePixelRatio || 1);
-  var r = cvs.parentElement.getBoundingClientRect();
-  W = Math.max(1, Math.round(r.width));
-  H = Math.max(1, Math.round(r.height));
-  cvs.width = W * DPR; cvs.height = H * DPR;
-  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-  buildStars();
-}
-function buildStars(){
-  starCvs = document.createElement('canvas');
-  starCvs.width = (W + 120) * DPR; starCvs.height = H * DPR;
-  var s = starCvs.getContext('2d');
-  s.setTransform(DPR, 0, 0, DPR, 0, 0);
-  var rng = mulberry32(0x57A2);
-  var n = Math.floor((W + 120) * H / 2600);
-  for (var i = 0; i < n; i++){
-    var x = rng() * (W + 120), y = rng() * H * .72, rr = rng();
-    s.fillStyle = rr > .9 ? 'rgba(246,223,164,.95)' : 'rgba(239,230,208,' + (0.25 + rng() * .5) + ')';
-    s.beginPath(); s.arc(x, y, rr > .9 ? 1.4 : .7, 0, 7); s.fill();
-  }
-}
-window.addEventListener('resize', function(){ resizeVista(); resizeGhost(); });
-
-function worldOffsets(){
-  var latR = target.lat * Math.PI / 180;
-  var wx = target.lng * 111320 * Math.cos(latR);
-  var wy = target.lat * 110540;
-  var b = target.bearing * Math.PI / 180;
-  return {
-    lateral:  wx * Math.cos(b) + wy * Math.sin(b),
-    forward: -wx * Math.sin(b) + wy * Math.cos(b),
-    zScale: Math.min(6, Math.max(.3, Math.pow(2, target.zoom - 15)))
-  };
-}
-
-function drawSpire(g, x, y, h, w, glow){
-  g.beginPath();
-  g.moveTo(x - w, y); g.lineTo(x, y - h); g.lineTo(x + w, y); g.closePath();
-  g.fill();
-  if (glow > 0){
-    g.save();
-    g.fillStyle = 'rgba(227,176,75,' + (0.55 * glow) + ')';
-    g.beginPath(); g.arc(x, y - h, 2.2, 0, 7); g.fill();
-    g.restore();
-  }
-}
-function drawTower(g, rng, x, y, h, w, litAmt){
-  g.fillRect(x - w / 2, y - h, w, h);
-  g.beginPath();
-  g.moveTo(x - w / 2 - 2, y - h); g.lineTo(x, y - h - w * .9); g.lineTo(x + w / 2 + 2, y - h);
-  g.closePath(); g.fill();
-  var rows = Math.max(1, Math.floor(h / 14));
-  g.save();
-  for (var r = 0; r < rows; r++){
-    if (rng() < litAmt){
-      g.fillStyle = rng() < .3 ? 'rgba(217,96,58,.8)' : 'rgba(227,176,75,.8)';
-      g.fillRect(x - w / 2 + 2 + rng() * (w - 6), y - h + 6 + r * 14, 2.5, 3.5);
+    // windows — warm lit panes
+    const wins = 1 + Math.floor(r()*2);
+    for (let i = 0; i < wins; i++) {
+      const off = (i - (wins-1)/2) * (cw / (wins+0.4));
+      const lit = r() < 0.62;
+      part(g, G.box, lit ? glow(PALETTE.ember) : mat(0x2c2636),
+           off, y + h*0.58, cd/2 + 0.03, 0.42, 0.5, 0.06, 0,0,0, false);
+      part(g, G.box, timberM, off, y + h*0.58, cd/2+0.05, 0.5, 0.06, 0.04,0,0,0,false);
     }
+    y += h;
   }
-  g.restore();
-}
-function drawCrystal(g, x, y, h, w){
-  g.save();
-  g.fillStyle = 'rgba(107,79,163,.85)';
-  g.beginPath();
-  g.moveTo(x, y - h); g.lineTo(x + w * .6, y - h * .45);
-  g.lineTo(x + w * .3, y); g.lineTo(x - w * .3, y);
-  g.lineTo(x - w * .6, y - h * .45); g.closePath();
-  g.fill();
-  g.strokeStyle = 'rgba(227,176,75,.4)'; g.lineWidth = .8; g.stroke();
-  g.fillStyle = 'rgba(246,223,164,.5)';
-  g.beginPath(); g.arc(x, y - h, 1.8, 0, 7); g.fill();
-  g.restore();
-}
-function drawGiantTree(g, rng, x, y, h, w){
-  g.save();
-  g.fillStyle = 'rgba(20,14,34,.95)';
-  g.fillRect(x - w * .12, y - h * .55, w * .24, h * .55);
-  g.fillStyle = 'rgba(58,44,96,.92)';
-  for (var i = 0; i < 3; i++){
-    var cy = y - h * (.5 + i * .18), cr = w * (0.55 - i * .12);
-    g.beginPath(); g.arc(x + (rng() - .5) * 4, cy, cr, 0, 7); g.fill();
+
+  // door
+  part(g, G.box, timberM, cw*0.18, 0.44 + 0.5, cd/2 + 0.02, 0.5, 1.0, 0.08, 0,0,0, false);
+
+  // steep gabled roof, prism made from a rotated 4-sided cone
+  const roofH = 1.5 + r()*0.9;
+  const roof = new THREE.Mesh(new THREE.ConeGeometry(0.5, 1, 4), roofM);
+  roof.position.set(0, y + roofH/2, 0);
+  roof.scale.set(Math.hypot(cw, cd) * 1.06, roofH, Math.hypot(cw, cd) * 1.06);
+  roof.rotation.y = Math.PI/4;
+  roof.castShadow = roof.receiveShadow = true;
+  g.add(roof);
+
+  // chimney with a wisp of smoke
+  if (r() < 0.75) {
+    const cx = (r()-0.5) * cw*0.5, cz = (r()-0.5)*cd*0.5;
+    part(g, G.box, stoneM, cx, y + roofH*0.7, cz, 0.42, roofH*1.1, 0.42);
+    const puff = new THREE.Mesh(G.ico, mat(0xcfcfe0, {transparent:true, opacity:0.35}));
+    puff.position.set(cx, y + roofH*1.45, cz);
+    puff.scale.setScalar(0.7 + r()*0.5);
+    g.add(puff);
+    g.userData.smoke = puff;
   }
-  g.fillStyle = 'rgba(227,176,75,.55)';
-  for (var j = 0; j < 5; j++){
-    g.beginPath();
-    g.arc(x + (rng() - .5) * w, y - h * (.5 + rng() * .4), .9, 0, 7);
-    g.fill();
-  }
-  g.restore();
-}
-function drawIsland(g, rng, x, y, s){
-  g.save();
-  g.fillStyle = 'rgba(29,23,53,.9)';
-  g.beginPath(); g.ellipse(x, y, s, s * .32, 0, 0, 7); g.fill();
-  g.beginPath();
-  g.moveTo(x - s * .7, y + s * .1); g.lineTo(x - s * .2, y + s * 1.1);
-  g.lineTo(x + s * .35, y + s * .15); g.closePath(); g.fill();
-  g.fillStyle = 'rgba(36,27,63,.95)';
-  drawSpire(g, x - s * .2, y - s * .05, s * .8, s * .16, 1);
-  if (rng() < .6) drawSpire(g, x + s * .35, y - s * .02, s * .5, s * .1, 1);
-  g.strokeStyle = 'rgba(227,176,75,.28)'; g.lineWidth = .8;
-  g.beginPath(); g.ellipse(x, y, s, s * .32, 0, Math.PI, 0); g.stroke();
-  g.restore();
+  return g;
 }
 
-function drawBand(g, opts){
-  g.fillStyle = opts.color;
-  g.beginPath();
-  g.moveTo(-4, H);
-  for (var x = -4; x <= W + 4; x += 6){
-    g.lineTo(x, opts.baseY - fbm((x + opts.off) / opts.wl, opts.seed) * opts.amp);
-  }
-  g.lineTo(W + 4, H);
-  g.closePath();
-  g.fill();
+/* --- wizard tower: tapered stone drum, conical cap, floating runes --- */
+function buildTower(r) {
+  const g = new THREE.Group();
+  const stoneM = mat(pick(PALETTE.stone, r()));
+  const capM   = mat(r() < 0.5 ? 0x51436f : pick(PALETTE.roofSlate, r()));
+  const drums = 3 + Math.floor(r()*3);
+  let y = 0, rad = 1.5;
 
-  if (!opts.structures) return;
-  var c0 = Math.floor((opts.off - 60) / opts.cell), c1 = Math.floor((opts.off + W + 60) / opts.cell);
-  for (var c = c0; c <= c1; c++){
-    var rng = mulberry32((c * 2654435761) ^ opts.seed);
-    var sx = c * opts.cell - opts.off + rng() * opts.cell * .6;
-    if (sx < -50 || sx > W + 50) continue;
-    var gy = opts.baseY - fbm((sx + opts.off) / opts.wl, opts.seed) * opts.amp + 2;
-    var roll = rng();
-    var density = .12 + sceneCur.urban * .55;
-    var treeDensity = .08 + sceneCur.forest * .5;
-    if (roll < density){
-      var kind = rng();
-      g.fillStyle = opts.structColor;
-      if (kind < .38) drawSpire(g, sx, gy, 26 + rng() * 46 * (1 + sceneCur.urban), 5 + rng() * 5, rng());
-      else if (kind < .72) drawTower(g, rng, sx, gy, 22 + rng() * 40 * (1 + sceneCur.urban * .8), 9 + rng() * 8, .25 + sceneCur.urban * .6);
-      else drawCrystal(g, sx, gy, 18 + rng() * 26, 8 + rng() * 6);
-    } else if (roll < density + treeDensity){
-      drawGiantTree(g, rng, sx, gy, 24 + rng() * 30, 14 + rng() * 12);
+  for (let i = 0; i < drums; i++) {
+    const h = 1.5 + r()*0.7;
+    part(g, G.cyl, stoneM, 0, y + h/2, 0, rad*2, h, rad*2);
+    // stone banding between drums
+    part(g, G.cyl, mat(pick(PALETTE.stone, r())), 0, y + h, 0, rad*2.16, 0.16, rad*2.16);
+    // arrow-slit windows, some lit arcane
+    const n = 3;
+    for (let k = 0; k < n; k++) {
+      const a = r()*6.28 + k * 2.09;
+      const litM = r() < 0.5 ? glow(PALETTE.magic) : glow(PALETTE.ember);
+      part(g, G.box, litM,
+           Math.cos(a)*rad*0.98, y + h*0.55, Math.sin(a)*rad*0.98,
+           0.2, 0.46, 0.2, 0, -a, 0, false);
     }
+    y += h;
+    rad *= 0.86;
   }
+
+  // balcony ring
+  part(g, G.cyl, stoneM, 0, y + 0.1, 0, rad*2.9, 0.2, rad*2.9);
+  y += 0.2;
+
+  // conical cap
+  const capH = 2.2 + r()*1.4;
+  part(g, G.cone, capM, 0, y + capH/2, 0, rad*2.5, capH, rad*2.5);
+
+  // orb finial, gently bobbing
+  const orb = new THREE.Mesh(G.ico1, glow(PALETTE.magic));
+  orb.position.set(0, y + capH + 0.5, 0);
+  orb.scale.setScalar(0.55);
+  g.add(orb);
+  const halo = new THREE.PointLight(PALETTE.magic, 3, 12, 2);
+  halo.position.copy(orb.position);
+  g.add(halo);
+  g.userData.orb = orb;
+
+  // slow-orbiting rune shards
+  const runes = new THREE.Group();
+  runes.position.copy(orb.position);
+  for (let i = 0; i < 5; i++) {
+    const a = (i/5) * 6.28;
+    part(runes, G.box, glow(0xc9b6ff), Math.cos(a)*1.5, (r()-0.5)*0.8, Math.sin(a)*1.5,
+         0.16, 0.26, 0.05, 0, -a, 0, false);
+  }
+  g.add(runes);
+  g.userData.runes = runes;
+  return g;
 }
 
-var embers = [];
-function spawnEmber(){
-  embers.push({
-    x: Math.random() * W, y: H + 6,
-    vy: -(8 + Math.random() * 20) / 60,
-    vx: 0, life: 1, size: .8 + Math.random() * 1.6,
-    hot: Math.random() < .5
-  });
+/* --- chapel / shrine with a rose window and buttresses --- */
+function buildChapel(r) {
+  const g = new THREE.Group();
+  const stoneM = mat(pick(PALETTE.stone, r()));
+  const roofM  = mat(pick(PALETTE.roofSlate, r()));
+  const w = 3.2, d = 5.0, h = 3.4;
+
+  part(g, G.box, stoneM, 0, h/2, 0, w, h, d);
+
+  // ribbed roof
+  const roof = new THREE.Mesh(new THREE.ConeGeometry(0.5,1,4), roofM);
+  roof.position.set(0, h + 0.9, 0);
+  roof.scale.set(w*1.5, 1.8, d*1.06);
+  roof.rotation.y = Math.PI/4;
+  roof.castShadow = roof.receiveShadow = true;
+  g.add(roof);
+
+  // flying buttresses
+  for (const sx of [-1,1]) for (let i = -1; i <= 1; i++) {
+    part(g, G.box, stoneM, sx*(w/2+0.35), h*0.42, i*1.5, 0.35, h*0.85, 0.35);
+    part(g, G.box, stoneM, sx*(w/2+0.2), h*0.9, i*1.5, 0.7, 0.22, 0.28, 0,0, sx*0.5);
+  }
+
+  // rose window
+  const rose = new THREE.Mesh(G.tor, glow(0xffd9a0));
+  rose.position.set(0, h*0.68, d/2 + 0.06);
+  rose.scale.setScalar(1.5);
+  g.add(rose);
+  part(g, G.cyl, glow(0xffe6bd), 0, h*0.68, d/2+0.06, 1.2, 0.08, 1.2, Math.PI/2,0,0, false);
+
+  // arched doorway
+  part(g, G.box, mat(PALETTE.wood), 0, 0.8, d/2+0.04, 1.1, 1.6, 0.1, 0,0,0, false);
+  part(g, G.cyl, mat(PALETTE.wood), 0, 1.6, d/2+0.04, 1.1, 0.1, 1.1, Math.PI/2,0,0, false);
+
+  // bell spire
+  part(g, G.box, stoneM, 0, h + 1.2, -d/2 + 0.9, 1.1, 3.4, 1.1);
+  part(g, G.cone6, roofM, 0, h + 3.6, -d/2 + 0.9, 1.5, 2.0, 1.5);
+  const bell = new THREE.Mesh(G.cone, mat(0xb08d3f));
+  bell.position.set(0, h + 2.3, -d/2 + 0.9);
+  bell.scale.set(0.55, -0.6, 0.55);
+  g.add(bell);
+  return g;
 }
 
-var t0 = performance.now();
-function frame(now){
-  var dt = Math.min(50, now - t0) / 1000; t0 = now;
-  var time = now / 1000;
+/* --- windmill with turning sails --- */
+function buildMill(r) {
+  const g = new THREE.Group();
+  const stoneM = mat(pick(PALETTE.stone, r()));
+  part(g, G.cyl, stoneM, 0, 2.0, 0, 3.4, 4.0, 3.4);
+  part(g, G.cyl, stoneM, 0, 0.3, 0, 4.0, 0.6, 4.0);
+  part(g, G.cone, mat(pick(PALETTE.thatch, r())), 0, 4.7, 0, 3.5, 1.6, 3.5);
+  part(g, G.box, mat(PALETTE.wood), 0, 1.0, 1.6, 0.8, 1.6, 0.2, 0,0,0, false);
 
-  var wo = worldOffsets();
-  cur.lateral = lerp(cur.lateral, wo.lateral, .10);
-  cur.forward = lerp(cur.forward, wo.forward, .10);
-  cur.zScale  = lerp(cur.zScale,  wo.zScale,  .06);
-  cur.bearing = lerp(cur.bearing, target.bearing, .12);
-  for (var k in scene) sceneCur[k] = lerp(sceneCur[k], scene[k], .05);
-
-  windVX = lerp(windVX, (cur.lateral - lastLateral) * -0.6, .2);
-  lastLateral = cur.lateral;
-
-  var horizon = H * .60;
-  var px = 0.06 * cur.zScale;
-  var drift = reduceMotion ? 0 : time;
-
-  /* SKY */
-  var sky = ctx.createLinearGradient(0, 0, 0, horizon * 1.25);
-  sky.addColorStop(0, '#0a0710');
-  sky.addColorStop(.45, '#181231');
-  sky.addColorStop(.8, '#31204a');
-  sky.addColorStop(1, 'rgba(217,96,58,.42)');
-  ctx.fillStyle = sky;
-  ctx.fillRect(0, 0, W, H);
-
-  if (starCvs){
-    var shift = ((cur.bearing * 1.6) % 120 + 120) % 120;
-    ctx.globalAlpha = .9;
-    ctx.drawImage(starCvs, shift * DPR, 0, W * DPR, H * DPR, 0, 0, W, H);
-    ctx.globalAlpha = 1;
+  const sails = new THREE.Group();
+  sails.position.set(0, 4.0, 2.0);
+  for (let i = 0; i < 4; i++) {
+    const arm = new THREE.Group();
+    arm.rotation.z = i * Math.PI/2;
+    part(arm, G.box, mat(PALETTE.wood), 0, 1.8, 0, 0.16, 3.6, 0.16);
+    part(arm, G.box, mat(0xd9cdae), 0.3, 1.9, 0.06, 0.7, 2.8, 0.05, 0,0,0, false);
+    sails.add(arm);
   }
+  g.add(sails);
+  g.userData.sails = sails;
+  return g;
+}
 
-  if (!reduceMotion){
-    ctx.save();
-    ctx.globalCompositeOperation = 'screen';
-    for (var a = 0; a < 2; a++){
-      var period = a === 0 ? 7.3 : 11.7;
-      var yBase = horizon * (.22 + a * .14);
-      var agrad = ctx.createLinearGradient(0, yBase - 30, 0, yBase + 30);
-      agrad.addColorStop(0, 'rgba(107,79,163,0)');
-      agrad.addColorStop(.5, a === 0 ? 'rgba(107,79,163,.16)' : 'rgba(142,163,199,.10)');
-      agrad.addColorStop(1, 'rgba(107,79,163,0)');
-      ctx.fillStyle = agrad;
-      ctx.beginPath();
-      ctx.moveTo(0, yBase);
-      for (var ax = 0; ax <= W; ax += 12){
-        ctx.lineTo(ax, yBase + Math.sin(ax * .012 + drift * (6.28 / period) + a * 2) * 16);
-      }
-      ctx.lineTo(W, yBase + 34); ctx.lineTo(0, yBase + 34);
-      ctx.closePath(); ctx.fill();
+/* --- market stall cluster with striped awnings --- */
+function buildMarket(r) {
+  const g = new THREE.Group();
+  const n = 2 + Math.floor(r()*3);
+  const awnings = [0xa8443f, 0x3f6a8a, 0x4f7a45, 0x8a6a2f, 0x6b4a7a];
+  for (let i = 0; i < n; i++) {
+    const st = new THREE.Group();
+    st.position.set((r()-0.5)*6, 0, (r()-0.5)*6);
+    st.rotation.y = r()*6.28;
+    part(st, G.box, mat(PALETTE.wood), 0, 0.85, 0, 2.2, 0.16, 1.4);
+    for (const sx of [-1,1]) for (const sz of [-1,1])
+      part(st, G.box, mat(PALETTE.wood), sx*1.0, 0.42, sz*0.6, 0.12, 0.85, 0.12);
+    for (const sx of [-1,1]) for (const sz of [-1,1])
+      part(st, G.box, mat(PALETTE.wood), sx*1.0, 1.4, sz*0.6, 0.1, 1.1, 0.1);
+    part(st, G.box, mat(pick(awnings, r())), 0, 2.1, 0, 2.6, 0.14, 1.9, 0.22,0,0);
+    // crates and produce
+    for (let k = 0; k < 3; k++) {
+      part(st, G.box, mat(0x8a6a44), (r()-0.5)*1.6, 1.05, (r()-0.5)*0.9, 0.34,0.28,0.34, 0, r()*3, 0);
+      part(st, G.ico, mat(pick([0xc0563f,0xb8993f,0x5f8a4a], r())), (r()-0.5)*1.6, 1.15, (r()-0.5)*0.9, 0.3,0.3,0.3);
     }
-    ctx.restore();
+    g.add(st);
   }
+  return g;
+}
 
-  /* twin moons */
-  var moonShift = cur.bearing * .5;
-  ctx.save();
-  var mg = ctx.createRadialGradient(W * .74 - moonShift, horizon * .28, 2, W * .74 - moonShift, horizon * .28, 46);
-  mg.addColorStop(0, 'rgba(246,223,164,.95)');
-  mg.addColorStop(.35, 'rgba(227,176,75,.5)');
-  mg.addColorStop(1, 'rgba(227,176,75,0)');
-  ctx.fillStyle = mg; ctx.fillRect(0, 0, W, horizon);
-  ctx.fillStyle = '#f2e3bd';
-  ctx.beginPath(); ctx.arc(W * .74 - moonShift, horizon * .28, 15, 0, 7); ctx.fill();
-  mg = ctx.createRadialGradient(W * .2 - moonShift * 1.4, horizon * .16, 1, W * .2 - moonShift * 1.4, horizon * .16, 22);
-  mg.addColorStop(0, 'rgba(217,96,58,.8)');
-  mg.addColorStop(1, 'rgba(217,96,58,0)');
-  ctx.fillStyle = mg; ctx.fillRect(0, 0, W, horizon);
-  ctx.fillStyle = '#d9784f';
-  ctx.beginPath(); ctx.arc(W * .2 - moonShift * 1.4, horizon * .16, 6, 0, 7); ctx.fill();
-  ctx.restore();
+/* --- well, cart, hay, barrels: the little props --- */
+function buildWell(r) {
+  const g = new THREE.Group();
+  const stoneM = mat(pick(PALETTE.stone, r()));
+  part(g, G.cyl, stoneM, 0, 0.45, 0, 1.8, 0.9, 1.8);
+  part(g, G.cyl, mat(0x1b2430), 0, 0.9, 0, 1.4, 0.06, 1.4, 0,0,0, false);
+  for (const sx of [-1,1]) part(g, G.box, mat(PALETTE.wood), sx*0.75, 1.6, 0, 0.16, 1.6, 0.16);
+  part(g, G.cone6, mat(pick(PALETTE.thatch, r())), 0, 2.7, 0, 2.6, 1.1, 2.6);
+  part(g, G.cyl, mat(PALETTE.wood), 0, 2.2, 0, 0.16, 1.7, 0.16, 0,0, Math.PI/2);
+  part(g, G.cyl, mat(0x6a4a30), 0, 1.55, 0, 0.4, 0.4, 0.4);
+  return g;
+}
 
-  /* far mountains */
-  drawBand(ctx, {
-    off: cur.lateral * px * .10 + cur.forward * px * .03,
-    seed: 0xA11CE, baseY: horizon, amp: horizon * .42, wl: 150,
-    color: '#150f28', cell: 130, structures: false
-  });
-
-  /* floating islands */
-  var ioff = cur.lateral * px * .22 + cur.forward * px * .06;
-  var icell = 260;
-  var ic0 = Math.floor((ioff - 100) / icell), ic1 = Math.floor((ioff + W + 100) / icell);
-  for (var ic = ic0; ic <= ic1; ic++){
-    var irng = mulberry32((ic * 40503) ^ 0xF10A7);
-    if (irng() < .34){
-      var isx = ic * icell - ioff + irng() * icell * .7;
-      var isy = horizon * (.24 + irng() * .3);
-      drawIsland(ctx, irng, isx, isy, 20 + irng() * 26);
-    }
+function buildOrchard(r) {
+  const g = new THREE.Group();
+  const rows = 3;
+  for (let i = 0; i < rows; i++) for (let k = 0; k < rows; k++) {
+    if (r() < 0.18) continue;
+    const t = new THREE.Group();
+    t.position.set((i-1)*3 + (r()-0.5), 0, (k-1)*3 + (r()-0.5));
+    const hgt = 1.4 + r()*0.8;
+    part(t, G.cyl, mat(0x5b4230), 0, hgt/2, 0, 0.34, hgt, 0.34);
+    const leafM = mat(pick([PALETTE.leafA, PALETTE.leafB, PALETTE.leafC], r()));
+    for (let b = 0; b < 3; b++)
+      part(t, G.ico, leafM, (r()-0.5)*0.9, hgt + 0.5 + b*0.35, (r()-0.5)*0.9, 2.0-b*0.35, 1.7-b*0.3, 2.0-b*0.35, r(), r(), r());
+    g.add(t);
   }
+  // low field wall
+  for (const sx of [-1,1])
+    part(g, G.box, mat(pick(PALETTE.stone, r())), sx*5.2, 0.3, 0, 0.4, 0.6, 10.4);
+  return g;
+}
 
-  /* mid ridge with citadels */
-  drawBand(ctx, {
-    off: cur.lateral * px * .32 + cur.forward * px * .10,
-    seed: 0xB227, baseY: horizon + H * .05, amp: horizon * .3, wl: 95,
-    color: '#1d1735', structColor: 'rgba(24,18,44,.96)',
-    cell: 92, structures: true
-  });
+function buildGarden(r) {
+  const g = new THREE.Group();
+  // tilled rows
+  for (let i = -3; i <= 3; i++)
+    part(g, G.box, mat(i%2 ? 0x5a4632 : 0x6a5540), i*1.2, 0.08, 0, 0.9, 0.16, 8);
+  // crops
+  for (let i = 0; i < 26; i++)
+    part(g, G.cone6, mat(pick([0x6f9a4a, 0x5c8a3f, 0x84a355], r())), (r()-0.5)*8, 0.35, (r()-0.5)*8, 0.4, 0.7, 0.4);
+  // scarecrow
+  part(g, G.box, mat(PALETTE.wood), 2, 0.9, -1, 0.14, 1.8, 0.14);
+  part(g, G.box, mat(PALETTE.wood), 2, 1.4, -1, 1.4, 0.12, 0.12);
+  part(g, G.ico, mat(0xb99a55), 2, 1.9, -1, 0.6,0.6,0.6);
+  part(g, G.cone6, mat(0x8a6a3a), 2, 2.2, -1, 1.1, 0.5, 1.1);
+  return g;
+}
 
-  /* mist sea */
-  if (sceneCur.water > .02){
-    var my = horizon + H * .02;
-    var wgrad = ctx.createLinearGradient(0, my - 26, 0, my + 44);
-    wgrad.addColorStop(0, 'rgba(142,163,199,0)');
-    wgrad.addColorStop(.5, 'rgba(142,163,199,' + (0.34 * sceneCur.water) + ')');
-    wgrad.addColorStop(1, 'rgba(142,163,199,0)');
-    ctx.fillStyle = wgrad;
-    ctx.fillRect(0, my - 26, W, 74);
-  }
-
-  /* near hills */
-  drawBand(ctx, {
-    off: cur.lateral * px * .7 + cur.forward * px * .22,
-    seed: 0xC33D, baseY: H * .82, amp: H * .17, wl: 70,
-    color: '#241b3f', structColor: 'rgba(16,11,30,.98)',
-    cell: 78, structures: true
-  });
-
-  /* leyline road */
-  if (sceneCur.road > .05){
-    var loff = cur.lateral * px * .7;
-    var la = Math.min(.9, sceneCur.road);
-    ctx.save();
-    ctx.globalCompositeOperation = 'screen';
-    ctx.lineCap = 'round';
-    var bendSeed = 0xD00D;
-    var startX = W / 2 + (fbm(loff / 90, bendSeed) - .5) * 60;
-    var topX = W / 2 + (fbm(loff / 400, bendSeed) - .5) * W * .5;
-    var midX = W / 2 + (fbm(loff / 190 + 3.7, bendSeed) - .5) * W * .8;
-    for (var pass = 0; pass < 2; pass++){
-      ctx.strokeStyle = pass === 0
-        ? 'rgba(227,176,75,' + (la * .16) + ')'
-        : 'rgba(246,223,164,' + (la * .6) + ')';
-      ctx.lineWidth = pass === 0 ? 26 : 3;
-      ctx.beginPath();
-      ctx.moveTo(startX, H + 8);
-      ctx.quadraticCurveTo(midX, H * .86, topX, horizon + H * .055);
-      ctx.stroke();
-    }
-    if (!reduceMotion){
-      var flow = ((cur.forward * px * .12 + time * 24) % 60 + 60) % 60;
-      ctx.fillStyle = 'rgba(246,223,164,' + (la * .8) + ')';
-      for (var d = flow; d < 100; d += 30){
-        var tt = d / 100;
-        var xx = (1 - tt) * (1 - tt) * startX + 2 * (1 - tt) * tt * midX + tt * tt * topX;
-        var yy = (1 - tt) * (1 - tt) * (H + 8) + 2 * (1 - tt) * tt * (H * .86) + tt * tt * (horizon + H * .055);
-        ctx.beginPath(); ctx.arc(xx, yy, 2.4 * (1 - tt * .6), 0, 7); ctx.fill();
-      }
-    }
-    ctx.restore();
-  }
-
-  /* WAYSTONE BEACON — a pillar of light where the pin stands.
-     Screen x from bearing-to-pin relative to view; size from distance. */
-  if (pin){
-    var pd = pinDelta();
-    var FOV = 70;                                   /* degrees to screen edge */
-    var inView = Math.abs(pd.rel) <= FOV;
-    var intensity = Math.max(.18, Math.min(1, 1 - pd.dist / 3000));
-    var bob = reduceMotion ? 0 : Math.sin(time * 1.9) * 3;
-
-    if (inView){
-      var bx = W / 2 + (pd.rel / FOV) * (W / 2 - 14);
-      var groundY = horizon + H * .04;
-      var pillarH = (H * .16 + H * .30 * intensity);
-
-      ctx.save();
-      ctx.globalCompositeOperation = 'screen';
-      /* light pillar */
-      var pg = ctx.createLinearGradient(0, groundY - pillarH, 0, groundY);
-      pg.addColorStop(0, 'rgba(246,223,164,0)');
-      pg.addColorStop(.55, 'rgba(227,176,75,' + (.34 * intensity) + ')');
-      pg.addColorStop(1, 'rgba(246,223,164,' + (.75 * intensity) + ')');
-      ctx.fillStyle = pg;
-      var pw = 3 + 9 * intensity;
-      ctx.fillRect(bx - pw / 2, groundY - pillarH, pw, pillarH);
-      /* halo at base */
-      var hg = ctx.createRadialGradient(bx, groundY, 1, bx, groundY, 26 + 30 * intensity);
-      hg.addColorStop(0, 'rgba(227,176,75,' + (.5 * intensity) + ')');
-      hg.addColorStop(1, 'rgba(227,176,75,0)');
-      ctx.fillStyle = hg;
-      ctx.beginPath(); ctx.arc(bx, groundY, 26 + 30 * intensity, 0, 7); ctx.fill();
-      /* floating gem */
-      var gy2 = groundY - pillarH - 6 + bob;
-      ctx.fillStyle = 'rgba(246,223,164,' + (.7 + .3 * intensity) + ')';
-      ctx.save();
-      ctx.translate(bx, gy2); ctx.rotate(Math.PI / 4);
-      var gs = 3 + 4 * intensity;
-      ctx.fillRect(-gs / 2, -gs / 2, gs, gs);
-      ctx.restore();
-      ctx.restore();
+function buildGrove(r) {
+  const g = new THREE.Group();
+  const n = 3 + Math.floor(r()*4);
+  for (let i = 0; i < n; i++) {
+    const t = new THREE.Group();
+    t.position.set((r()-0.5)*8, 0, (r()-0.5)*8);
+    const hgt = 2 + r()*3;
+    part(t, G.cyl, mat(0x54402e), 0, hgt/2, 0, 0.5, hgt, 0.5);
+    const conifer = r() < 0.45;
+    const leafM = mat(pick([PALETTE.leafA, PALETTE.leafB, PALETTE.leafC], r()));
+    if (conifer) {
+      for (let b = 0; b < 3; b++)
+        part(t, G.cone6, leafM, 0, hgt*0.7 + b*1.1, 0, 3.4-b*0.7, 2.2, 3.4-b*0.7);
     } else {
-      /* off-view: edge chevron at horizon pointing toward the waystone */
-      var edgeX = pd.rel > 0 ? W - 16 : 16;
-      var dirSign = pd.rel > 0 ? 1 : -1;
-      ctx.save();
-      ctx.globalAlpha = .55 + (reduceMotion ? 0 : Math.sin(time * 3.1) * .25);
-      ctx.strokeStyle = '#e3b04b';
-      ctx.lineWidth = 2; ctx.lineCap = 'round';
-      ctx.beginPath();
-      ctx.moveTo(edgeX - 5 * dirSign, horizon - 8);
-      ctx.lineTo(edgeX + 4 * dirSign, horizon);
-      ctx.lineTo(edgeX - 5 * dirSign, horizon + 8);
-      ctx.stroke();
-      ctx.restore();
+      for (let b = 0; b < 3; b++)
+        part(t, G.ico1, leafM, (r()-0.5)*1.2, hgt + 0.6 + b*0.7, (r()-0.5)*1.2,
+             3.2-b*0.6, 2.6-b*0.5, 3.2-b*0.6, r()*3, r()*3, r()*3);
+    }
+    g.add(t);
+  }
+  // mushroom ring — a little magic underfoot
+  if (r() < 0.4) {
+    for (let i = 0; i < 7; i++) {
+      const a = i/7*6.28, R = 2.4;
+      part(g, G.cyl, mat(0xe8e0cc), Math.cos(a)*R, 0.2, Math.sin(a)*R, 0.2,0.4,0.2, 0,0,0,false);
+      part(g, G.sph, glow(0x7fd0ff), Math.cos(a)*R, 0.45, Math.sin(a)*R, 0.55,0.35,0.55, 0,0,0,false);
+    }
+  }
+  return g;
+}
+
+function buildPond(r) {
+  const g = new THREE.Group();
+  part(g, G.cyl, mat(PALETTE.water), 0, 0.06, 0, 8.4, 0.12, 7.0, 0,0,0, false);
+  part(g, G.cyl, mat(0x6d7a54), 0, 0.04, 0, 9.2, 0.08, 7.8, 0,0,0, false);
+  // reeds & stones
+  for (let i = 0; i < 14; i++) {
+    const a = r()*6.28, R = 3.6 + r()*0.9;
+    part(g, G.cone6, mat(0x7a8a4a), Math.cos(a)*R, 0.5, Math.sin(a)*R*0.85, 0.24, 1.0, 0.24);
+  }
+  for (let i = 0; i < 6; i++)
+    part(g, G.ico, mat(pick(PALETTE.stone, r())), (r()-0.5)*9, 0.2, (r()-0.5)*8, 0.8,0.5,0.8, r(),r(),r());
+  // lily pads
+  for (let i = 0; i < 5; i++)
+    part(g, G.cyl, mat(0x4d7f45), (r()-0.5)*6, 0.14, (r()-0.5)*5, 0.9,0.05,0.9, 0,0,0,false);
+  return g;
+}
+
+function buildForge(r) {
+  const g = new THREE.Group();
+  const stoneM = mat(pick(PALETTE.stone, r()));
+  part(g, G.box, stoneM, 0, 1.3, 0, 4.4, 2.6, 3.6);
+  const roof = new THREE.Mesh(new THREE.ConeGeometry(0.5,1,4), mat(pick(PALETTE.roofSlate, r())));
+  roof.position.set(0, 3.2, 0); roof.scale.set(6.0, 1.5, 5.2); roof.rotation.y = Math.PI/4;
+  roof.castShadow = roof.receiveShadow = true; g.add(roof);
+  // open forge front with a glowing hearth
+  part(g, G.box, glow(0xff7b33), 0, 1.0, 1.85, 1.6, 1.2, 0.1, 0,0,0, false);
+  const heat = new THREE.PointLight(0xff8a3d, 4, 11, 2);
+  heat.position.set(0, 1.4, 2.2); g.add(heat);
+  g.userData.hearth = heat;
+  // big chimney
+  part(g, G.box, stoneM, -1.5, 3.6, -0.8, 0.9, 3.2, 0.9);
+  // anvil and wood pile
+  part(g, G.box, mat(0x3a3a42), 2.6, 0.5, 1.8, 0.9, 0.4, 0.5);
+  part(g, G.box, mat(0x3a3a42), 2.6, 0.25, 1.8, 0.4, 0.5, 0.4);
+  for (let i = 0; i < 5; i++)
+    part(g, G.cyl, mat(0x6a4f35), -2.6 + (i%3)*0.34, 0.2 + Math.floor(i/3)*0.34, 2.0, 0.3, 1.5, 0.3, 0,0, Math.PI/2);
+  return g;
+}
+
+function buildTavern(r) {
+  const g = new THREE.Group();
+  const h = buildHouse(r);
+  h.scale.setScalar(1.25);
+  g.add(h);
+  // hanging sign on a wrought bracket
+  part(g, G.box, mat(0x2f2a30), 2.6, 3.2, 2.4, 1.5, 0.1, 0.1, 0,0,0, false);
+  part(g, G.box, mat(PALETTE.wood), 3.2, 2.6, 2.4, 1.1, 1.0, 0.1);
+  part(g, G.cyl, glow(0xffc46b), 3.2, 2.6, 2.5, 0.5, 0.06, 0.5, Math.PI/2,0,0, false);
+  // lantern by the door
+  const lamp = new THREE.PointLight(PALETTE.ember, 3.5, 10, 2);
+  lamp.position.set(1.6, 2.2, 2.6);
+  g.add(lamp);
+  part(g, G.ico, glow(PALETTE.ember), 1.6, 2.2, 2.6, 0.4,0.5,0.4, 0,0,0, false);
+  // barrels outside
+  for (let i = 0; i < 3; i++)
+    part(g, G.cyl, mat(0x7a5a38), -2.4 - i*0.1, 0.45, 2.6 - i*0.9, 0.8, 0.9, 0.8);
+  return g;
+}
+
+function buildStatue(r) {
+  const g = new THREE.Group();
+  const stoneM = mat(pick(PALETTE.stone, r()));
+  part(g, G.box, stoneM, 0, 0.25, 0, 4.0, 0.5, 4.0);
+  part(g, G.box, stoneM, 0, 0.85, 0, 2.4, 0.7, 2.4);
+  part(g, G.box, stoneM, 0, 1.6, 0, 1.4, 0.9, 1.4);
+  // a robed figure raising a light
+  part(g, G.cyl, stoneM, 0, 2.9, 0, 1.2, 1.7, 0.9);
+  part(g, G.sph, stoneM, 0, 4.0, 0, 0.7, 0.8, 0.7);
+  part(g, G.box, stoneM, 0.55, 3.6, 0, 0.28, 1.6, 0.28, 0,0,-0.35);
+  const spark = new THREE.Mesh(G.ico1, glow(0xbfe8ff));
+  spark.position.set(0.85, 4.6, 0); spark.scale.setScalar(0.5); g.add(spark);
+  const pl = new THREE.PointLight(0x9fd6ff, 3, 12, 2);
+  pl.position.copy(spark.position); g.add(pl);
+  g.userData.orb = spark;
+  return g;
+}
+
+function buildRuin(r) {
+  const g = new THREE.Group();
+  const stoneM = mat(pick(PALETTE.stone, r()));
+  // broken arches and toppled columns
+  for (let i = 0; i < 5; i++) {
+    const hgt = 0.8 + r()*3;
+    part(g, G.box, stoneM, (r()-0.5)*7, hgt/2, (r()-0.5)*7, 0.8, hgt, 0.8, 0, r()*3, (r()-0.5)*0.16);
+  }
+  for (let i = 0; i < 3; i++)
+    part(g, G.cyl, stoneM, (r()-0.5)*7, 0.4, (r()-0.5)*7, 0.8, 3.0, 0.8, Math.PI/2, r()*3, 0);
+  // ivy
+  for (let i = 0; i < 6; i++)
+    part(g, G.ico, mat(PALETTE.leafC), (r()-0.5)*7, 0.5 + r(), (r()-0.5)*7, 1.4,0.9,1.4, r(),r(),r());
+  return g;
+}
+
+/* --- ground plate + road for one tile --- */
+function buildGround(r, roadN, roadE) {
+  const g = new THREE.Group();
+  const grassM = mat(r() < 0.5 ? PALETTE.grass : PALETTE.grassDim);
+  part(g, G.box, grassM, 0, -0.15, 0, TILE, 0.3, TILE, 0,0,0, true);
+
+  const roadM = mat(PALETTE.road);
+  const kerbM = mat(PALETTE.roadEdge);
+  const RW = 3.0;
+  if (roadN) {
+    part(g, G.box, roadM, 0, 0.02, 0, RW, 0.34, TILE, 0,0,0, true);
+    for (const sx of [-1,1]) part(g, G.box, kerbM, sx*RW/2, 0.06, 0, 0.3, 0.4, TILE, 0,0,0, true);
+  }
+  if (roadE) {
+    part(g, G.box, roadM, 0, 0.02, 0, TILE, 0.34, RW, 0,0,0, true);
+    for (const sz of [-1,1]) part(g, G.box, kerbM, 0, 0.06, sz*RW/2, TILE, 0.4, 0.3, 0,0,0, true);
+  }
+  // cobble speckle on roads
+  if (roadN || roadE) {
+    for (let i = 0; i < 10; i++) {
+      const on = roadN && (!roadE || r() < 0.5);
+      const px = on ? (r()-0.5)*RW*0.8 : (r()-0.5)*TILE;
+      const pz = on ? (r()-0.5)*TILE : (r()-0.5)*RW*0.8;
+      part(g, G.box, mat(0x7b7264), px, 0.2, pz, 0.5, 0.06, 0.5, 0, r()*3, 0, false);
+    }
+  }
+  return g;
+}
+
+/* --- street lanterns along road edges --- */
+function buildLantern(r) {
+  const g = new THREE.Group();
+  part(g, G.cyl, mat(0x2f2a30), 0, 1.2, 0, 0.16, 2.4, 0.16);
+  part(g, G.box, mat(0x2f2a30), 0.25, 2.4, 0, 0.6, 0.1, 0.1, 0,0,0, false);
+  part(g, G.ico, glow(PALETTE.ember), 0.5, 2.25, 0, 0.36, 0.5, 0.36, 0,0,0, false);
+  const pl = new THREE.PointLight(PALETTE.ember, 2.2, 8, 2);
+  pl.position.set(0.5, 2.25, 0);
+  g.add(pl);
+  return g;
+}
+
+/* ================= tile assembly ================= */
+/* A tile's contents are a pure function of its (gx, gz) coordinate,
+   so leapfrogging a tile to a new coordinate rebuilds the same place. */
+
+const BUILDERS = [
+  { fn: buildHouse,   w: 30 },
+  { fn: buildTower,   w: 5  },
+  { fn: buildChapel,  w: 3  },
+  { fn: buildMill,    w: 3  },
+  { fn: buildMarket,  w: 6  },
+  { fn: buildWell,    w: 4  },
+  { fn: buildOrchard, w: 6  },
+  { fn: buildGarden,  w: 6  },
+  { fn: buildGrove,   w: 9  },
+  { fn: buildPond,    w: 4  },
+  { fn: buildForge,   w: 4  },
+  { fn: buildTavern,  w: 5  },
+  { fn: buildStatue,  w: 3  },
+  { fn: buildRuin,    w: 4  },
+];
+const TOTAL_W = BUILDERS.reduce((a,b) => a + b.w, 0);
+function chooseBuilder(t) {
+  let acc = 0, x = t * TOTAL_W;
+  for (const b of BUILDERS) { acc += b.w; if (x < acc) return b.fn; }
+  return buildHouse;
+}
+
+const animated = [];  // { obj, kind, phase }
+
+function makeTile(gx, gz) {
+  const g = new THREE.Group();
+  const r = rngAt(gx, gz);
+
+  // road layout: a loose grid — every 2nd/3rd line carries a street
+  const roadN = ((gx % 2) + 2) % 2 === 0;
+  const roadE = ((gz % 3) + 3) % 3 === 0;
+
+  g.add(buildGround(r, roadN, roadE));
+
+  // where can we build? avoid the road corridors
+  const freeSlots = [];
+  for (const qx of [-1, 1]) for (const qz of [-1, 1]) {
+    const cx = qx * TILE * 0.26, cz = qz * TILE * 0.26;
+    if (roadN && Math.abs(cx) < 2.2) continue;
+    if (roadE && Math.abs(cz) < 2.2) continue;
+    freeSlots.push([cx, cz]);
+  }
+
+  const crossroads = roadN && roadE;
+  const density = crossroads ? 0.55 : 0.85;
+
+  for (const [cx, cz] of freeSlots) {
+    if (r() > density) continue;
+    const build = chooseBuilder(r());
+    const obj = build(r);
+    obj.position.set(cx + (r()-0.5)*1.4, 0, cz + (r()-0.5)*1.4);
+    obj.rotation.y = Math.round(r()*4) * Math.PI/2 + (r()-0.5)*0.14;
+    g.add(obj);
+
+    if (obj.userData.sails) animated.push({ o: obj.userData.sails, k:'sails', p: r()*6.28 });
+    if (obj.userData.orb)   animated.push({ o: obj.userData.orb,   k:'bob',   p: r()*6.28 });
+    if (obj.userData.runes) animated.push({ o: obj.userData.runes, k:'orbit', p: r()*6.28 });
+    if (obj.userData.smoke) animated.push({ o: obj.userData.smoke, k:'smoke', p: r()*6.28, y: obj.userData.smoke.position.y });
+    if (obj.userData.hearth)animated.push({ o: obj.userData.hearth,k:'flicker',p: r()*6.28, i: obj.userData.hearth.intensity });
+  }
+
+  // lanterns on the corners of crossroads
+  if (crossroads) {
+    for (const sx of [-1,1]) for (const sz of [-1,1]) {
+      if (r() < 0.4) continue;
+      const l = buildLantern(r);
+      l.position.set(sx*2.4, 0, sz*2.4);
+      l.rotation.y = Math.atan2(-sx, -sz);
+      g.add(l);
     }
   }
 
-  /* embers */
-  if (!reduceMotion){
-    if (embers.length < 42 && Math.random() < .5) spawnEmber();
-    ctx.save();
-    ctx.globalCompositeOperation = 'screen';
-    for (var ei = embers.length - 1; ei >= 0; ei--){
-      var e = embers[ei];
-      e.vx = lerp(e.vx, windVX * .02, .1);
-      e.x += e.vx + Math.sin(time * 2 + ei) * .15;
-      e.y += e.vy * 60 * dt;
-      e.life -= dt * .22;
-      if (e.life <= 0 || e.y < -8){ embers.splice(ei, 1); continue; }
-      ctx.fillStyle = e.hot
-        ? 'rgba(217,96,58,' + (e.life * .8) + ')'
-        : 'rgba(227,176,75,' + (e.life * .7) + ')';
-      ctx.beginPath(); ctx.arc(e.x, e.y, e.size, 0, 7); ctx.fill();
-    }
-    ctx.restore();
+  g.position.set(gx * TILE, 0, gz * TILE);
+  return g;
+}
+
+/* ================= the wrapping pool ================= */
+const tiles = new Map();       // "gx,gz" -> Group
+const town  = new THREE.Group();
+scene.add(town);
+
+let originX = 0, originZ = 0;  // which tile the camera sits over
+
+function rebuild(cx, cz) {
+  const wanted = new Set();
+  for (let i = -HALF; i <= HALF; i++) {
+    for (let k = -HALF; k <= HALF; k++) wanted.add((cx+i) + ',' + (cz+k));
   }
+  // retire tiles outside the window
+  for (const [key, t] of tiles) {
+    if (!wanted.has(key)) {
+      town.remove(t);
+      t.traverse(o => { if (o.isMesh && o.geometry && !Object.values(G).includes(o.geometry)) o.geometry.dispose(); });
+      tiles.delete(key);
+      // drop their animation entries
+      for (let i = animated.length - 1; i >= 0; i--) {
+        let p = animated[i].o, inside = false;
+        while (p) { if (p === t) { inside = true; break; } p = p.parent; }
+        if (inside) animated.splice(i, 1);
+      }
+    }
+  }
+  // spawn the newly visible ones
+  for (const key of wanted) {
+    if (tiles.has(key)) continue;
+    const [gx, gz] = key.split(',').map(Number);
+    const t = makeTile(gx, gz);
+    tiles.set(key, t);
+    town.add(t);
+  }
+}
+rebuild(0, 0);
 
-  /* atmosphere */
-  var fog = ctx.createLinearGradient(0, horizon - 40, 0, H);
-  fog.addColorStop(0, 'rgba(49,32,74,0)');
-  fog.addColorStop(1, 'rgba(10,7,16,.55)');
-  ctx.fillStyle = fog; ctx.fillRect(0, horizon - 40, W, H - horizon + 40);
-  var vig = ctx.createRadialGradient(W / 2, H * .5, H * .35, W / 2, H * .5, H * .95);
-  vig.addColorStop(0, 'rgba(10,7,16,0)');
-  vig.addColorStop(1, 'rgba(10,7,16,.5)');
-  ctx.fillStyle = vig; ctx.fillRect(0, 0, W, H);
+/* ================= camera drift & input ================= */
+const target   = new THREE.Vector3(0, 0, 0);   // where we're heading
+const focus    = new THREE.Vector3(0, 0, 0);   // where we are (eased)
+let   velX = 0, velZ = 0;
+let   dragging = false, lastX = 0, lastY = 0;
+let   zoomTarget = zoom;
+let   leagues = 0;
+const wardEl = document.querySelector('#ward b');
 
-  if (ghostActive) drawGhost(time);
+/* screen-space drag -> world-space movement on the ground plane */
+const RIGHT = new THREE.Vector3(1, 0, -1).normalize();
+const FWD   = new THREE.Vector3(-1, 0, -1).normalize();
+
+function pointerDown(x, y) { dragging = true; lastX = x; lastY = y; canvas.classList.add('dragging'); }
+function pointerMove(x, y) {
+  if (!dragging) return;
+  const dx = (x - lastX) / innerHeight * zoom * 2.4;
+  const dy = (y - lastY) / innerHeight * zoom * 2.4;
+  lastX = x; lastY = y;
+  velX -= RIGHT.x*dx + FWD.x*dy;
+  velZ -= RIGHT.z*dx + FWD.z*dy;
+}
+function pointerUp() { dragging = false; canvas.classList.remove('dragging'); }
+
+canvas.addEventListener('pointerdown', e => { canvas.setPointerCapture(e.pointerId); pointerDown(e.clientX, e.clientY); });
+canvas.addEventListener('pointermove', e => pointerMove(e.clientX, e.clientY));
+canvas.addEventListener('pointerup',   pointerUp);
+canvas.addEventListener('pointercancel', pointerUp);
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  zoomTarget = THREE.MathUtils.clamp(zoomTarget * (1 + Math.sign(e.deltaY) * 0.08), 8, 34);
+}, { passive:false });
+
+/* pinch to zoom */
+let pinch = 0;
+canvas.addEventListener('touchstart', e => {
+  if (e.touches.length === 2) {
+    pinch = Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
+    dragging = false;
+  }
+}, {passive:true});
+canvas.addEventListener('touchmove', e => {
+  if (e.touches.length === 2 && pinch) {
+    const d = Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
+    zoomTarget = THREE.MathUtils.clamp(zoomTarget * (pinch/d), 8, 34);
+    pinch = d;
+  }
+}, {passive:true});
+canvas.addEventListener('touchend', () => { pinch = 0; }, {passive:true});
+
+/* arrow keys / WASD */
+const keys = new Set();
+addEventListener('keydown', e => keys.add(e.key.toLowerCase()));
+addEventListener('keyup',   e => keys.delete(e.key.toLowerCase()));
+
+addEventListener('resize', onResize);
+function onResize() {
+  aspect = innerWidth / innerHeight;
+  renderer.setSize(innerWidth, innerHeight, false);
+  camera.left = -zoom*aspect; camera.right = zoom*aspect;
+  camera.top = zoom; camera.bottom = -zoom;
+  camera.updateProjectionMatrix();
+}
+onResize();
+
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ================= loop ================= */
+const clock = new THREE.Clock();
+
+function frame() {
   requestAnimationFrame(frame);
-}
+  const dt = Math.min(clock.getDelta(), 0.05);
+  const t  = clock.elapsedTime;
 
-resizeVista();
-updateHUD();
-requestAnimationFrame(frame);
-logDiag('vista running', 'ok');
+  // keyboard nudge
+  const k = 16 * dt;
+  if (keys.has('arrowup')   || keys.has('w')) { velX += FWD.x*k;   velZ += FWD.z*k; }
+  if (keys.has('arrowdown') || keys.has('s')) { velX -= FWD.x*k;   velZ -= FWD.z*k; }
+  if (keys.has('arrowleft') || keys.has('a')) { velX -= RIGHT.x*k; velZ -= RIGHT.z*k; }
+  if (keys.has('arrowright')|| keys.has('d')) { velX += RIGHT.x*k; velZ += RIGHT.z*k; }
 
-/* ============================================================
-   3. GEOLOCATION (independent of map availability)
-   ============================================================ */
-if (navigator.geolocation){
-  navigator.geolocation.getCurrentPosition(
-    function(pos){
-      userPos.lng = pos.coords.longitude;
-      userPos.lat = pos.coords.latitude;
-      logDiag('geolocation ok: ' + fmtCoord(userPos.lat, userPos.lng), 'ok');
-      if (map){
-        if (userMarker) userMarker.setLngLat([userPos.lng, userPos.lat]);
-        map.jumpTo({ center:[userPos.lng, userPos.lat] });
-      } else {
-        target.lng = userPos.lng; target.lat = userPos.lat;
-        updateHUD();
+  // gentle ambient drift when idle, so the town always feels alive
+  if (!dragging && Math.hypot(velX, velZ) < 0.06 && !reduced) {
+    velX += Math.cos(t*0.07) * 0.012;
+    velZ += Math.sin(t*0.05) * 0.012;
+  }
+
+  target.x += velX; target.z += velZ;
+  leagues += Math.hypot(velX, velZ);
+  velX *= 0.86; velZ *= 0.86;
+
+  focus.x += (target.x - focus.x) * Math.min(1, dt * 6);
+  focus.z += (target.z - focus.z) * Math.min(1, dt * 6);
+
+  zoom += (zoomTarget - zoom) * Math.min(1, dt * 5);
+  camera.left = -zoom*aspect; camera.right = zoom*aspect;
+  camera.top = zoom; camera.bottom = -zoom;
+  camera.updateProjectionMatrix();
+
+  camera.position.set(focus.x + 60, 58, focus.z + 60);
+  camera.lookAt(focus.x, 0, focus.z);
+  sun.position.set(focus.x + 38, 60, focus.z + 22);
+  sun.target.position.set(focus.x, 0, focus.z);
+  sun.target.updateMatrixWorld();
+
+  // wrap the tile pool when we cross into a new block
+  const cx = Math.round(focus.x / TILE);
+  const cz = Math.round(focus.z / TILE);
+  if (cx !== originX || cz !== originZ) { originX = cx; originZ = cz; rebuild(cx, cz); }
+
+  // per-piece animation
+  if (!reduced) {
+    for (const a of animated) {
+      switch (a.k) {
+        case 'sails':   a.o.rotation.z += dt * 0.55; break;
+        case 'bob':     a.o.position.y += Math.sin(t*1.4 + a.p) * 0.0035;
+                        a.o.rotation.y += dt * 0.6; break;
+        case 'orbit':   a.o.rotation.y += dt * 0.35;
+                        a.o.rotation.x = Math.sin(t*0.4 + a.p) * 0.25; break;
+        case 'smoke': { const c = ((t*0.35 + a.p/6.28) % 1);
+                        a.o.position.y = a.y + c * 2.6;
+                        a.o.material.opacity = 0.32 * (1 - c);
+                        a.o.scale.setScalar(0.6 + c * 1.4); break; }
+        case 'flicker': a.o.intensity = a.i * (0.8 + Math.sin(t*7 + a.p)*0.12 + Math.sin(t*17+a.p)*0.08); break;
       }
-      showGeoNote('Your position is bound to the realm');
-    },
-    function(err){
-      logDiag('geolocation denied/failed: ' + err.message + ' (code ' + err.code + ')', 'err');
-      showGeoNote('Location veiled — showing a distant shore');
-    },
-    { enableHighAccuracy:true, timeout:8000 }
-  );
-} else {
-  logDiag('navigator.geolocation unavailable', 'err');
-  showGeoNote('Location veiled — showing a distant shore');
-}
-
-document.getElementById('recenterBtn').addEventListener('click', function(){
-  if (map){
-    map.flyTo({ center:[userPos.lng, userPos.lat], zoom:15.4, bearing:0, speed:1.4 });
-  } else {
-    target.lng = userPos.lng; target.lat = userPos.lat;
-    target.bearing = 0; target.zoom = 15.4;
-    updateHUD();
-  }
-});
-
-/* ============================================================
-   4. MAPLIBRE — async load, multi-CDN fallback, try/catch init
-   ============================================================ */
-var MAPLIBRE_JS = [
-  'https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.min.js',
-  'https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.min.js',
-  'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js'
-];
-var MAPLIBRE_CSS = [
-  'https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.min.css',
-  'https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.min.css',
-  'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css'
-];
-
-function loadScriptChain(urls, i){
-  i = i || 0;
-  return new Promise(function(resolve, reject){
-    if (i >= urls.length){ reject(new Error('all script CDNs failed')); return; }
-    var s = document.createElement('script');
-    s.src = urls[i];
-    s.onload = function(){ logDiag('js loaded: ' + urls[i].split('/')[2], 'ok'); resolve(); };
-    s.onerror = function(){
-      logDiag('js failed: ' + urls[i], 'err');
-      loadScriptChain(urls, i + 1).then(resolve, reject);
-    };
-    document.head.appendChild(s);
-  });
-}
-function loadCssChain(urls, i){
-  i = i || 0;
-  if (i >= urls.length){ logDiag('all css CDNs failed (non-fatal)', 'err'); return; }
-  var l = document.createElement('link');
-  l.rel = 'stylesheet';
-  l.href = urls[i];
-  l.onload = function(){ logDiag('css loaded: ' + urls[i].split('/')[2], 'ok'); };
-  l.onerror = function(){ loadCssChain(urls, i + 1); };
-  document.head.appendChild(l);
-}
-
-var featureDirty = false, lastSample = 0;
-function sampleFeatures(){
-  if (!map || !map.isStyleLoaded()) return;
-  var water = 0, forest = 0, urban = 0, road = 0;
-  try{
-    var feats = map.queryRenderedFeatures();
-    for (var i = 0; i < feats.length; i++){
-      var f = feats[i];
-      var id = ((f.layer && f.layer.id) || '').toLowerCase();
-      var sl = (f.sourceLayer || '').toLowerCase();
-      if (id.indexOf('water') >= 0 || sl === 'water') water++;
-      else if (id.indexOf('wood') >= 0 || id.indexOf('forest') >= 0 || id.indexOf('grass') >= 0 || id.indexOf('park') >= 0 || sl === 'park') forest++;
-      else if (id.indexOf('building') >= 0 || sl === 'building') urban++;
-      else if (id.indexOf('transportation') >= 0 || id.indexOf('highway') >= 0 || id.indexOf('road') >= 0 || sl.indexOf('transportation') >= 0) road++;
-    }
-  }catch(e){ return; }
-  scene.water  = Math.min(1, water  / 6);
-  scene.forest = Math.min(1, forest / 14);
-  scene.urban  = Math.min(1, urban  / 45);
-  scene.road   = Math.min(1, road   / 30);
-}
-setInterval(function(){
-  var now = performance.now();
-  if (featureDirty && now - lastSample > 480){
-    featureDirty = false; lastSample = now;
-    sampleFeatures();
-  }
-}, 240);
-
-function initMap(){
-  loadCssChain(MAPLIBRE_CSS);
-  loadScriptChain(MAPLIBRE_JS).then(function(){
-    if (typeof maplibregl === 'undefined') throw new Error('maplibregl undefined after script load');
-    logDiag('maplibre-gl v' + maplibregl.version);
-
-    map = new maplibregl.Map({
-      container:'map',
-      style:'https://tiles.openfreemap.org/styles/liberty',
-      center:[target.lng, target.lat],
-      zoom:target.zoom,
-      pitch:0,
-      attributionControl:{ compact:true },
-      dragRotate:true,
-      touchPitch:false
-    });
-
-    map.on('error', function(e){
-      logDiag('map error: ' + ((e.error && e.error.message) || 'unknown'), 'err');
-    });
-
-    var markerEl = document.createElement('div');
-    markerEl.className = 'rune-marker';
-    markerEl.innerHTML = '<div class="ring"></div><div class="ring"></div><div class="core"></div>';
-    userMarker = new maplibregl.Marker({ element:markerEl })
-      .setLngLat([userPos.lng, userPos.lat]).addTo(map);
-
-    map.on('move', function(){
-      var c = map.getCenter();
-      target.lng = c.lng; target.lat = c.lat;
-      target.bearing = map.getBearing();
-      target.zoom = map.getZoom();
-      updateHUD();
-      featureDirty = true;
-    });
-
-    map.on('load', function(){
-      mapReady = true;
-      logDiag('map style loaded', 'ok');
-      sampleFeatures();
-      var toast = document.getElementById('hintToast');
-      toast.classList.add('show');
-      setTimeout(function(){ toast.classList.remove('show'); }, 4200);
-    });
-  }).catch(function(err){
-    logDiag('map init failed: ' + err.message, 'err');
-    enableGhostMap();
-  });
-}
-try{ initMap(); }catch(e){ logDiag('map init threw: ' + e.message, 'err'); enableGhostMap(); }
-
-/* ============================================================
-   5. GHOST MAP — touch-drag fallback if MapLibre never loads
-   ============================================================ */
-var ghostActive = false;
-var gcvs = document.getElementById('ghostMap');
-var gctx = gcvs.getContext('2d');
-var GW = 0, GH = 0;
-
-function resizeGhost(){
-  var r = gcvs.parentElement.getBoundingClientRect();
-  GW = Math.max(1, Math.round(r.width));
-  GH = Math.max(1, Math.round(r.height));
-  gcvs.width = GW * DPR; gcvs.height = GH * DPR;
-  gctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-}
-
-function enableGhostMap(){
-  if (ghostActive) return;
-  ghostActive = true;
-  gcvs.style.display = 'block';
-  document.getElementById('map').style.display = 'none';
-  document.getElementById('mapLabel').textContent = 'Ghost Cartography \u00B7 offline';
-  resizeGhost();
-  showGeoNote('Cartography unreachable — drag here to wander the realm', 5200);
-
-  var wrap = document.getElementById('mapWrap');
-  var pointers = {};
-  var pinchDist = 0;
-
-  function metersPerPx(){
-    return 156543 * Math.cos(target.lat * Math.PI / 180) / Math.pow(2, target.zoom + 8) * 256;
-  }
-  wrap.addEventListener('pointerdown', function(ev){
-    if (ev.target.closest('.recenter') || ev.target.closest('.diag-btn') || ev.target.closest('.diag-panel')) return;
-    pointers[ev.pointerId] = { x:ev.clientX, y:ev.clientY };
-    wrap.setPointerCapture(ev.pointerId);
-  });
-  wrap.addEventListener('pointermove', function(ev){
-    if (!pointers[ev.pointerId]) return;
-    var ids = Object.keys(pointers);
-    if (ids.length === 1){
-      var p = pointers[ev.pointerId];
-      var dx = ev.clientX - p.x, dy = ev.clientY - p.y;
-      var mpp = metersPerPx();
-      var b = target.bearing * Math.PI / 180;
-      var east  = (-dx * Math.cos(b) + dy * Math.sin(b)) * mpp;
-      var north = ( dy * Math.cos(b) + dx * Math.sin(b)) * mpp;
-      target.lng += east  / (111320 * Math.cos(target.lat * Math.PI / 180));
-      target.lat += north / 110540;
-      target.lat = Math.max(-85, Math.min(85, target.lat));
-      updateHUD();
-    } else if (ids.length === 2){
-      var a = pointers[ids[0]], b2 = pointers[ids[1]];
-      if (String(ev.pointerId) === ids[0]) a = { x:ev.clientX, y:ev.clientY };
-      else b2 = { x:ev.clientX, y:ev.clientY };
-      var d = Math.hypot(a.x - b2.x, a.y - b2.y);
-      if (pinchDist > 0){
-        target.zoom = Math.max(11, Math.min(18, target.zoom + (d - pinchDist) * .01));
-        updateHUD();
-      }
-      pinchDist = d;
-    }
-    pointers[ev.pointerId] = { x:ev.clientX, y:ev.clientY };
-  });
-  function endPointer(ev){
-    delete pointers[ev.pointerId];
-    if (Object.keys(pointers).length < 2) pinchDist = 0;
-  }
-  wrap.addEventListener('pointerup', endPointer);
-  wrap.addEventListener('pointercancel', endPointer);
-}
-
-function drawGhost(time){
-  gctx.fillStyle = '#131022';
-  gctx.fillRect(0, 0, GW, GH);
-  var mpp = 156543 * Math.cos(target.lat * Math.PI / 180) / Math.pow(2, target.zoom + 8) * 256;
-  var gridM = 100;
-  var gridPx = gridM / mpp;
-  while (gridPx < 34){ gridM *= 2; gridPx = gridM / mpp; }
-  while (gridPx > 110){ gridM /= 2; gridPx = gridM / mpp; }
-  var wxm = target.lng * 111320 * Math.cos(target.lat * Math.PI / 180);
-  var wym = target.lat * 110540;
-  var offX = (wxm / gridM % 1 + 1) % 1 * gridPx;
-  var offY = (wym / gridM % 1 + 1) % 1 * gridPx;
-
-  gctx.strokeStyle = 'rgba(227,176,75,.12)';
-  gctx.lineWidth = 1;
-  for (var gx = -offX; gx <= GW; gx += gridPx){
-    gctx.beginPath(); gctx.moveTo(gx, 0); gctx.lineTo(gx, GH); gctx.stroke();
-  }
-  for (var gy = GH + offY; gy >= 0; gy -= gridPx){
-    gctx.beginPath(); gctx.moveTo(0, gy); gctx.lineTo(GW, gy); gctx.stroke();
-  }
-
-  /* seeded district sigils so the ghost map has landmarks to steer by */
-  var cellM = gridM * 3;
-  var cellPx = cellM / mpp;
-  var c0x = Math.floor((wxm - GW / 2 * mpp) / cellM), c1x = Math.floor((wxm + GW / 2 * mpp) / cellM);
-  var c0y = Math.floor((wym - GH / 2 * mpp) / cellM), c1y = Math.floor((wym + GH / 2 * mpp) / cellM);
-  for (var cx = c0x; cx <= c1x; cx++){
-    for (var cy = c0y; cy <= c1y; cy++){
-      var rng = mulberry32((cx * 73856093) ^ (cy * 19349663) ^ 0x6057);
-      if (rng() > .4) continue;
-      var sxp = GW / 2 + ((cx + .5) * cellM - wxm) / mpp;
-      var syp = GH / 2 - ((cy + .5) * cellM - wym) / mpp;
-      var rr = 6 + rng() * Math.min(26, cellPx * .2);
-      gctx.strokeStyle = 'rgba(107,79,163,.4)';
-      gctx.beginPath(); gctx.arc(sxp, syp, rr, 0, 7); gctx.stroke();
-      gctx.fillStyle = 'rgba(227,176,75,.5)';
-      gctx.beginPath(); gctx.arc(sxp, syp, 1.6, 0, 7); gctx.fill();
     }
   }
 
-  /* waystone pin */
-  if (pin){
-    var pWx = pin.lng * 111320 * Math.cos(target.lat * Math.PI / 180);
-    var pWy = pin.lat * 110540;
-    var pxp = GW / 2 + (pWx - wxm) / mpp;
-    var pyp = GH / 2 - (pWy - wym) / mpp;
-    if (pxp > -30 && pxp < GW + 30 && pyp > -30 && pyp < GH + 30){
-      var wp = reduceMotion ? .5 : (Math.sin(time * 2.1) * .5 + .5);
-      gctx.strokeStyle = 'rgba(227,176,75,' + (.4 + wp * .4) + ')';
-      gctx.lineWidth = 1.2;
-      gctx.beginPath(); gctx.arc(pxp, pyp, 8 + wp * 4, 0, 7); gctx.stroke();
-      gctx.save();
-      gctx.translate(pxp, pyp); gctx.rotate(Math.PI / 4);
-      gctx.fillStyle = '#e3b04b';
-      gctx.fillRect(-4, -4, 8, 8);
-      gctx.strokeStyle = 'rgba(246,223,164,.9)';
-      gctx.strokeRect(-4, -4, 8, 8);
-      gctx.restore();
-    }
-  }
-
-  /* wayfarer at centre */
-  var pulse = reduceMotion ? .5 : (Math.sin(time * 2.4) * .5 + .5);
-  gctx.strokeStyle = 'rgba(227,176,75,' + (0.5 + pulse * .4) + ')';
-  gctx.lineWidth = 1.5;
-  gctx.beginPath(); gctx.arc(GW / 2, GH / 2, 9 + pulse * 5, 0, 7); gctx.stroke();
-  gctx.fillStyle = '#f6dfa4';
-  gctx.beginPath(); gctx.arc(GW / 2, GH / 2, 3.4, 0, 7); gctx.fill();
+  wardEl.textContent = Math.floor(leagues / 10).toLocaleString();
+  renderer.render(scene, camera);
 }
+
+frame();
+requestAnimationFrame(() => document.getElementById('plate').classList.add('gone'));
 </script>
 </body>
 </html>
