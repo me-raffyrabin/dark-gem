@@ -13,10 +13,10 @@
     --arcane:#8f7ad6;
   }
   *{margin:0;padding:0;box-sizing:border-box}
-  html,body{height:100%;overflow:hidden;background:#101018;}
+  html,body{height:100%;overflow:hidden;background:#9fd0ea;}
   body{
     font-family:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
-    color:var(--parch);
+    color:#26414f;
     -webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;
   }
   #scene{position:fixed;inset:0;display:block;cursor:grab;}
@@ -25,14 +25,14 @@
   /* --- vignette + parchment grain over the whole view --- */
   #veil{
     position:fixed;inset:0;pointer-events:none;
-    box-shadow:inset 0 0 22vmax rgba(20,12,30,.55);
+    box-shadow:inset 0 0 20vmax rgba(40,70,90,.22);
     mix-blend-mode:multiply;
   }
 
   /* --- loading plate --- */
   #plate{
     position:fixed;inset:0;display:grid;place-items:center;
-    background:radial-gradient(120% 90% at 50% 40%,#2c2440 0%,#14101d 70%);
+    background:radial-gradient(120% 90% at 50% 38%,#cfe8f5 0%,#8fc0dc 72%);
     z-index:10;transition:opacity .9s ease .2s;
   }
   #plate.gone{opacity:0;pointer-events:none}
@@ -47,22 +47,21 @@
   #plate p{text-align:center;letter-spacing:.42em;text-transform:uppercase;font-size:11px;opacity:.72}
   #plate h1{
     text-align:center;font-size:clamp(30px,7vw,58px);font-weight:400;
-    letter-spacing:.14em;margin-bottom:10px;
-    background:linear-gradient(180deg,#fff6df,#c9a86a);
-    -webkit-background-clip:text;background-clip:text;color:transparent;
+    letter-spacing:.14em;margin-bottom:10px;color:#2f4a5c;
   }
+  #plate p{color:#3d5a6c}
 
   /* --- corner plaque --- */
   #plaque{
     position:fixed;left:20px;bottom:18px;z-index:5;pointer-events:none;
-    line-height:1.6;text-shadow:0 1px 3px rgba(0,0,0,.8);
+    line-height:1.6;color:#26414f;text-shadow:0 1px 2px rgba(255,255,255,.55);
   }
   #plaque .name{font-size:19px;letter-spacing:.22em;text-transform:uppercase}
   #plaque .hint{font-size:11px;letter-spacing:.14em;opacity:.6;text-transform:uppercase}
   #ward{
     position:fixed;right:20px;bottom:18px;z-index:5;text-align:right;
-    font-size:11px;letter-spacing:.14em;opacity:.55;text-transform:uppercase;
-    text-shadow:0 1px 3px rgba(0,0,0,.8);pointer-events:none;
+    font-size:11px;letter-spacing:.14em;opacity:.7;text-transform:uppercase;
+    color:#26414f;text-shadow:0 1px 2px rgba(255,255,255,.55);pointer-events:none;
   }
   #ward b{display:block;font-size:17px;font-weight:400;letter-spacing:.1em;opacity:.95}
   @media (max-width:520px){ #ward{display:none} }
@@ -135,13 +134,13 @@ const HALF   = (GRID - 1) / 2;
 const SPAN   = GRID * TILE;
 
 const PALETTE = {
-  sky      : 0x2b2740,
-  fog      : 0x3c3a56,
-  grass    : 0x5f7f4e,
-  grassDim : 0x4d6b40,
-  road     : 0x6b6154,
-  roadEdge : 0x574f45,
-  water    : 0x3f6f8a,
+  sky      : 0x9fd0ea,
+  fog      : 0xc6e2f0,
+  grass    : 0x7aa855,
+  grassDim : 0x6d9a4c,
+  road     : 0xd8c9a6,
+  roadEdge : 0xbfae8a,
+  water    : 0x6fb6d6,
   plaster  : [0xe8dcc0, 0xdccBa4, 0xe3d3b2, 0xd6c6a8],
   timber   : [0x4a3527, 0x3b2a1e, 0x55402c],
   roofRed  : [0x8c4436, 0x7a3a2d, 0x9c5140],
@@ -180,7 +179,7 @@ else if (THREE.sRGBEncoding) renderer.outputEncoding = THREE.sRGBEncoding;
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(PALETTE.sky);
-scene.fog = new THREE.Fog(PALETTE.fog, 46, 108);
+scene.fog = new THREE.Fog(PALETTE.fog, 62, 150);
 
 /* isometric-ish camera, like the original's fixed 3/4 view */
 let aspect = innerWidth / innerHeight;
@@ -190,10 +189,10 @@ camera.position.set(60, 58, 60);
 camera.lookAt(0, 0, 0);
 
 /* ================= light ================= */
-scene.add(new THREE.HemisphereLight(0xbfd4ff, 0x3b3a2a, 1.05));
+scene.add(new THREE.HemisphereLight(0xdcefff, 0x6f7a4e, 1.15));
 
-const sun = new THREE.DirectionalLight(0xffe9c4, 1.5);
-sun.position.set(38, 60, 22);
+const sun = new THREE.DirectionalLight(0xfff6e2, 1.85);
+sun.position.set(44, 92, 30);
 sun.castShadow = true;
 sun.shadow.mapSize.set(2048, 2048);
 const s = 62;
@@ -203,9 +202,9 @@ sun.shadow.bias = -0.0012;
 sun.shadow.normalBias = 0.03;
 scene.add(sun, sun.target);
 
-const moon = new THREE.DirectionalLight(0x8fa0ff, 0.35);
-moon.position.set(-40, 30, -30);
-scene.add(moon);
+const fill = new THREE.DirectionalLight(0xbfd8f0, 0.45);
+fill.position.set(-40, 34, -30);
+scene.add(fill);
 
 /* ================= shared geometry & material cache ================= */
 const G = {
@@ -290,8 +289,8 @@ function buildHouse(r) {
     const wins = 1 + Math.floor(r()*2);
     for (let i = 0; i < wins; i++) {
       const off = (i - (wins-1)/2) * (cw / (wins+0.4));
-      const lit = r() < 0.62;
-      part(g, G.box, lit ? glow(PALETTE.ember) : mat(0x2c2636),
+      const lit = r() < 0.18;
+      part(g, G.box, lit ? glow(0xffd9a0) : mat(0x6b7f96),
            off, y + h*0.58, cd/2 + 0.03, 0.42, 0.5, 0.06, 0,0,0, false);
       part(g, G.box, timberM, off, y + h*0.58, cd/2+0.05, 0.5, 0.06, 0.04,0,0,0,false);
     }
@@ -314,7 +313,7 @@ function buildHouse(r) {
   if (r() < 0.75) {
     const cx = (r()-0.5) * cw*0.5, cz = (r()-0.5)*cd*0.5;
     part(g, G.box, stoneM, cx, y + roofH*0.7, cz, 0.42, roofH*1.1, 0.42);
-    const puff = new THREE.Mesh(G.ico, mat(0xcfcfe0, {transparent:true, opacity:0.35}));
+    const puff = new THREE.Mesh(G.ico, mat(0xf2f4f8, {transparent:true, opacity:0.42}));
     puff.position.set(cx, y + roofH*1.45, cz);
     puff.scale.setScalar(0.7 + r()*0.5);
     g.add(puff);
@@ -362,7 +361,7 @@ function buildTower(r) {
   orb.position.set(0, y + capH + 0.5, 0);
   orb.scale.setScalar(0.55);
   g.add(orb);
-  const halo = new THREE.PointLight(PALETTE.magic, 3, 12, 2);
+  const halo = new THREE.PointLight(PALETTE.magic, 1.4, 11, 2);
   halo.position.copy(orb.position);
   g.add(halo);
   g.userData.orb = orb;
@@ -578,7 +577,7 @@ function buildForge(r) {
   roof.castShadow = roof.receiveShadow = true; g.add(roof);
   // open forge front with a glowing hearth
   part(g, G.box, glow(0xff7b33), 0, 1.0, 1.85, 1.6, 1.2, 0.1, 0,0,0, false);
-  const heat = new THREE.PointLight(0xff8a3d, 4, 11, 2);
+  const heat = new THREE.PointLight(0xff8a3d, 2.2, 10, 2);
   heat.position.set(0, 1.4, 2.2); g.add(heat);
   g.userData.hearth = heat;
   // big chimney
@@ -601,7 +600,7 @@ function buildTavern(r) {
   part(g, G.box, mat(PALETTE.wood), 3.2, 2.6, 2.4, 1.1, 1.0, 0.1);
   part(g, G.cyl, glow(0xffc46b), 3.2, 2.6, 2.5, 0.5, 0.06, 0.5, Math.PI/2,0,0, false);
   // lantern by the door
-  const lamp = new THREE.PointLight(PALETTE.ember, 3.5, 10, 2);
+  const lamp = new THREE.PointLight(PALETTE.ember, 1.5, 9, 2);
   lamp.position.set(1.6, 2.2, 2.6);
   g.add(lamp);
   part(g, G.ico, glow(PALETTE.ember), 1.6, 2.2, 2.6, 0.4,0.5,0.4, 0,0,0, false);
@@ -623,7 +622,7 @@ function buildStatue(r) {
   part(g, G.box, stoneM, 0.55, 3.6, 0, 0.28, 1.6, 0.28, 0,0,-0.35);
   const spark = new THREE.Mesh(G.ico1, glow(0xbfe8ff));
   spark.position.set(0.85, 4.6, 0); spark.scale.setScalar(0.5); g.add(spark);
-  const pl = new THREE.PointLight(0x9fd6ff, 3, 12, 2);
+  const pl = new THREE.PointLight(0x9fd6ff, 1.6, 11, 2);
   pl.position.copy(spark.position); g.add(pl);
   g.userData.orb = spark;
   return g;
@@ -653,22 +652,22 @@ function buildGround(r, roadN, roadE) {
 
   const roadM = mat(PALETTE.road);
   const kerbM = mat(PALETTE.roadEdge);
-  const RW = 3.0;
+  const RW = 3.6;
   if (roadN) {
-    part(g, G.box, roadM, 0, 0.02, 0, RW, 0.34, TILE, 0,0,0, true);
-    for (const sx of [-1,1]) part(g, G.box, kerbM, sx*RW/2, 0.06, 0, 0.3, 0.4, TILE, 0,0,0, true);
+    part(g, G.box, roadM, 0, 0.06, 0, RW, 0.42, TILE, 0,0,0, true);
+    for (const sx of [-1,1]) part(g, G.box, kerbM, sx*RW/2, 0.10, 0, 0.34, 0.46, TILE, 0,0,0, true);
   }
   if (roadE) {
-    part(g, G.box, roadM, 0, 0.02, 0, TILE, 0.34, RW, 0,0,0, true);
-    for (const sz of [-1,1]) part(g, G.box, kerbM, 0, 0.06, sz*RW/2, TILE, 0.4, 0.3, 0,0,0, true);
+    part(g, G.box, roadM, 0, 0.06, 0, TILE, 0.42, RW, 0,0,0, true);
+    for (const sz of [-1,1]) part(g, G.box, kerbM, 0, 0.10, sz*RW/2, TILE, 0.46, 0.34, 0,0,0, true);
   }
   // cobble speckle on roads
   if (roadN || roadE) {
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 22; i++) {
       const on = roadN && (!roadE || r() < 0.5);
       const px = on ? (r()-0.5)*RW*0.8 : (r()-0.5)*TILE;
       const pz = on ? (r()-0.5)*TILE : (r()-0.5)*RW*0.8;
-      part(g, G.box, mat(0x7b7264), px, 0.2, pz, 0.5, 0.06, 0.5, 0, r()*3, 0, false);
+      part(g, G.box, mat(r() < 0.5 ? 0xc4b38f : 0xe4d7b8), px, 0.28, pz, 0.55, 0.06, 0.55, 0, r()*3, 0, false);
     }
   }
   return g;
@@ -680,7 +679,7 @@ function buildLantern(r) {
   part(g, G.cyl, mat(0x2f2a30), 0, 1.2, 0, 0.16, 2.4, 0.16);
   part(g, G.box, mat(0x2f2a30), 0.25, 2.4, 0, 0.6, 0.1, 0.1, 0,0,0, false);
   part(g, G.ico, glow(PALETTE.ember), 0.5, 2.25, 0, 0.36, 0.5, 0.36, 0,0,0, false);
-  const pl = new THREE.PointLight(PALETTE.ember, 2.2, 8, 2);
+  const pl = new THREE.PointLight(PALETTE.ember, 0.9, 7, 2);
   pl.position.set(0.5, 2.25, 0);
   g.add(pl);
   return g;
@@ -721,16 +720,16 @@ function makeTile(gx, gz) {
 
   // road layout: a loose grid — every 2nd/3rd line carries a street
   const roadN = ((gx % 2) + 2) % 2 === 0;
-  const roadE = ((gz % 3) + 3) % 3 === 0;
+  const roadE = ((gz % 2) + 2) % 2 === 0;
 
   g.add(buildGround(r, roadN, roadE));
 
   // where can we build? avoid the road corridors
   const freeSlots = [];
   for (const qx of [-1, 1]) for (const qz of [-1, 1]) {
-    const cx = qx * TILE * 0.26, cz = qz * TILE * 0.26;
-    if (roadN && Math.abs(cx) < 2.2) continue;
-    if (roadE && Math.abs(cz) < 2.2) continue;
+    const cx = qx * TILE * 0.30, cz = qz * TILE * 0.30;
+    if (roadN && Math.abs(cx) < 2.9) continue;
+    if (roadE && Math.abs(cz) < 2.9) continue;
     freeSlots.push([cx, cz]);
   }
 
@@ -741,7 +740,7 @@ function makeTile(gx, gz) {
     if (r() > density) continue;
     const build = chooseBuilder(r());
     const obj = build(r);
-    obj.position.set(cx + (r()-0.5)*1.4, 0, cz + (r()-0.5)*1.4);
+    obj.position.set(cx + (r()-0.5)*0.7, 0, cz + (r()-0.5)*0.7);
     obj.rotation.y = Math.round(r()*4) * Math.PI/2 + (r()-0.5)*0.14;
     g.add(obj);
 
@@ -757,7 +756,7 @@ function makeTile(gx, gz) {
     for (const sx of [-1,1]) for (const sz of [-1,1]) {
       if (r() < 0.4) continue;
       const l = buildLantern(r);
-      l.position.set(sx*2.4, 0, sz*2.4);
+      l.position.set(sx*2.5, 0, sz*2.5);
       l.rotation.y = Math.atan2(-sx, -sz);
       g.add(l);
     }
@@ -907,7 +906,7 @@ function frame() {
 
   camera.position.set(focus.x + 60, 58, focus.z + 60);
   camera.lookAt(focus.x, 0, focus.z);
-  sun.position.set(focus.x + 38, 60, focus.z + 22);
+  sun.position.set(focus.x + 44, 92, focus.z + 30);
   sun.target.position.set(focus.x, 0, focus.z);
   sun.target.updateMatrixWorld();
 
@@ -927,7 +926,7 @@ function frame() {
                         a.o.rotation.x = Math.sin(t*0.4 + a.p) * 0.25; break;
         case 'smoke': { const c = ((t*0.35 + a.p/6.28) % 1);
                         a.o.position.y = a.y + c * 2.6;
-                        a.o.material.opacity = 0.32 * (1 - c);
+                        a.o.material.opacity = 0.4 * (1 - c);
                         a.o.scale.setScalar(0.6 + c * 1.4); break; }
         case 'flicker': a.o.intensity = a.i * (0.8 + Math.sin(t*7 + a.p)*0.12 + Math.sin(t*17+a.p)*0.08); break;
       }
