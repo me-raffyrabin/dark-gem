@@ -87,10 +87,32 @@
   </div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three/0.160.0/three.min.js"></script>
+<script>
+/* Load three.js UMD with fallbacks: r128 is the last widely-mirrored non-module
+   build, and any one CDN may be blocked, so try several in order. */
+(function(){
+  var SRC = [
+    "https://cdnjs.cloudflare.com/ajax/libs/three/r128/three.min.js",
+    "https://unpkg.com/three@0.128.0/build/three.min.js",
+    "https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js",
+    "https://cdn.skypack.dev/three@0.128.0/build/three.min.js"
+  ];
+  var i = 0;
+  function next(){
+    if (i >= SRC.length) { window.__everwynStart(); return; }
+    var el = document.createElement('script');
+    el.src = SRC[i++];
+    el.onload  = function(){ window.__everwynStart(); };
+    el.onerror = next;
+    document.head.appendChild(el);
+  }
+  next();
+})();
+</script>
 
 <script>
-(function(){
+window.__everwynStart = function(){
+window.__everwynStart = function(){};   // only ever run once
 if (typeof THREE === 'undefined') {
   var pl = document.getElementById('plate');
   pl.innerHTML = '<div style="text-align:center;padding:24px;max-width:34ch">' +
@@ -153,7 +175,8 @@ const renderer = new THREE.WebGLRenderer({ canvas, antialias:true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-renderer.outputColorSpace = THREE.SRGBColorSpace;
+if ('outputColorSpace' in renderer && THREE.SRGBColorSpace) renderer.outputColorSpace = THREE.SRGBColorSpace;
+else if (THREE.sRGBEncoding) renderer.outputEncoding = THREE.sRGBEncoding;
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(PALETTE.sky);
@@ -175,6 +198,7 @@ sun.castShadow = true;
 sun.shadow.mapSize.set(2048, 2048);
 const s = 62;
 Object.assign(sun.shadow.camera, { left:-s, right:s, top:s, bottom:-s, near:1, far:190 });
+sun.shadow.camera.updateProjectionMatrix();
 sun.shadow.bias = -0.0012;
 sun.shadow.normalBias = 0.03;
 scene.add(sun, sun.target);
@@ -917,7 +941,7 @@ function frame() {
 }
 
 frame();
-})();
+};
 </script>
 </body>
 </html>
