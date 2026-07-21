@@ -86,15 +86,88 @@ async function fetchElevation(lat, lon){
     lons.push((lon - dLon/2 + dLon*(i/(N-1))).toFixed(5));
   }
 
-  const CH = 100, out = new Float32Array(N*N);
+  // Open-Meteo caps ~100 coords/request and rate-limits bursts, so we send
+  // the largest legal chunk, pace the calls, and back off on 429.
+  const CH = 100;
+  const out = new Float32Array(N*N);
+  let got = 0;
+
+  const sleep = ms => new Promise(r=>setTimeout(r,ms));
+
   for(let s=0; s<lats.length; s+=CH){
     const la = lats.slice(s,s+CH).join(','), lo = lons.slice(s,s+CH).join(',');
-    const r = await tfetch(`https://api.open-meteo.com/v1/elevation?latitude=${la}&longitude=${lo}`, 10000);
-    if(!r.ok) throw new Error('elevation http '+r.status);
-    const j = await r.json();
-    j.elevation.forEach((v,k)=> out[s+k] = v);
+    const url = `https://api.open-meteo.com/v1/elevation?latitude=${la}&longitude=${lo}`;
+
+    let ok = false;
+    for(let attempt=0; attempt<4 && !ok; attempt++){
+      try{
+        const r = await tfetch(url, 12000);
+        if(r.status === 429){
+          const wait = 700 * Math.pow(2, attempt);      // 0.7s, 1.4s, 2.8s, 5.6s
+          statusEl.textContent = 'Easing off the server…';
+          await sleep(wait);
+          continue;
+        }
+        if(!r.ok) throw new Error('http '+r.status);
+        const j = await r.json();
+        const arr = j.elevation || [];
+        for(let k=0;k<arr.length;k++){
+          if(typeof arr[k] === 'number'){ out[s+k] = arr[k]; got++; }
+        }
+        ok = true;
+      }catch(e){
+        if(attempt === 3) break;                        // give up on this chunk
+        await sleep(500 * (attempt+1));
+      }
+    }
+
     statusEl.textContent = `Reading the land ${Math.min(100,Math.round((s+CH)/lats.length*100))}%`;
+    await sleep(140);                                   // pace between chunks
   }
+
+  // require most of the grid before calling it real data
+  if(got < N*N*0.75) throw new Error(`elevation incomplete (${got}/${N*N})`);
+
+  // patch any zero holes from dropped chunks using neighbours
+  for(let i=0;i<out.length;i++){
+    if(out[i] === 0){
+      let sum=0,c=0;
+      for(const d of [-1,1,-N,N]){
+        const k=i+d;
+        if(k>=0 && k<out.length && out[k]!==0){ sum+=out[k]; c++; }
+      }
+      if(c) out[i]=sum/c;
+    }
+  }
+  return {data:out, n:N};
+}
+
+/* secondary provider — OpenTopoData (SRTM 30m), 100 pts/request */
+async function fetchElevationOTD(lat, lon){
+  const N = 32;                                          // smaller grid, fewer calls
+  const dLat = (SPAN_KM/DEG_LAT);
+  const dLon = (SPAN_KM/(DEG_LAT*Math.cos(lat*Math.PI/180)));
+  const pts=[];
+  for(let j=0;j<N;j++) for(let i=0;i<N;i++){
+    pts.push(`${(lat - dLat/2 + dLat*(j/(N-1))).toFixed(5)},`
+           + `${(lon - dLon/2 + dLon*(i/(N-1))).toFixed(5)}`);
+  }
+  const out = new Float32Array(N*N);
+  const sleep = ms => new Promise(r=>setTimeout(r,ms));
+  let got = 0;
+
+  for(let s=0; s<pts.length; s+=100){
+    const loc = pts.slice(s,s+100).join('|');
+    const r = await tfetch(`https://api.opentopodata.org/v1/srtm30m?locations=${loc}`, 12000);
+    if(!r.ok) throw new Error('otd http '+r.status);
+    const j = await r.json();
+    (j.results||[]).forEach((v,k)=>{
+      if(v && typeof v.elevation === 'number'){ out[s+k] = v.elevation; got++; }
+    });
+    statusEl.textContent = `Reading the land ${Math.min(100,Math.round((s+100)/pts.length*100))}%`;
+    await sleep(1100);                                   // OTD allows ~1 call/sec
+  }
+  if(got < N*N*0.75) throw new Error('otd incomplete');
   return {data:out, n:N};
 }
 
@@ -171,7 +244,7 @@ scene.fog = new THREE.FogExp2(0xe9dcc0, 0.00075);
 /* ============================================================
    4. TERRAIN
    ============================================================ */
-let terrain, heights, minH=0, maxH=1, exag = 1.6;
+let terrain, heights, minH=0, maxH=1, exag = 1.6, peak = 1;
 let grassMesh, grassBase;
 
 function buildTerrain(el){
@@ -191,17 +264,24 @@ function buildTerrain(el){
 
   // normalize -> scene units. flat regions get a gentle synthetic roll
   // so coastal / plains users still see terrain instead of a pancake.
-  const flat = range < 25;
+  // True vertical scale: WORLD units span SPAN_KM, so 1m ≈ WORLD/(SPAN_KM*1000).
+  // Pure 1:1 looks flat at human scale, so boost gently — more for subtle
+  // terrain, less for mountains — keeping the *shape* honest.
+  const trueScale = WORLD / (SPAN_KM * 1000);
+  const boost = THREE.MathUtils.clamp(900 / Math.max(range, 40), 2.5, 14);
+  const flat = range < 12;
+
   heights = new Float32Array(pos.count);
   for(let i=0;i<pos.count;i++){
     const x = pos.getX(i), z = pos.getZ(i);
-    let h = ((raw[i]-minH)/range) * 150;
+    let h = (raw[i]-minH) * trueScale * boost;
     if(flat){
-      h += Math.sin(x*0.011)*Math.cos(z*0.009)*16
-         + Math.sin(x*0.031+z*0.017)*6;
+      h += Math.sin(x*0.011)*Math.cos(z*0.009)*10
+         + Math.sin(x*0.031+z*0.017)*4;
     }
     heights[i] = h;
   }
+  peak = Math.max(...heights) || 1;
 
   applyExag();
 
@@ -217,7 +297,7 @@ function buildTerrain(el){
   ];
   const tmp = new THREE.Color();
   for(let i=0;i<pos.count;i++){
-    const t = THREE.MathUtils.clamp(heights[i]/(150*exag),0,1);
+    const t = THREE.MathUtils.clamp(heights[i]/peak,0,1);
     let a=C[0], b=C[C.length-1];
     for(let k=0;k<C.length-1;k++) if(t>=C[k][0]&&t<=C[k+1][0]){a=C[k];b=C[k+1];break;}
     const f=(t-a[0])/Math.max(b[0]-a[0],1e-5);
@@ -234,6 +314,26 @@ function buildTerrain(el){
   terrain = new THREE.Mesh(geo, mat);
   terrain.receiveShadow = true; terrain.castShadow = true;
   scene.add(terrain);
+
+  // skirt: drop walls from the border so the world reads as a solid slab
+  const skirtV = [], H = WORLD/2, DEPTH = -260;
+  const edge = [];
+  for(let i=0;i<=GRID;i++) edge.push([-H+i*SEG, -H]);
+  for(let i=1;i<=GRID;i++) edge.push([ H, -H+i*SEG]);
+  for(let i=1;i<=GRID;i++) edge.push([ H-i*SEG,  H]);
+  for(let i=1;i<=GRID;i++) edge.push([-H,  H-i*SEG]);
+  for(let i=0;i<edge.length-1;i++){
+    const [x1,z1]=edge[i], [x2,z2]=edge[i+1];
+    const y1=heightAt(x1,z1), y2=heightAt(x2,z2);
+    skirtV.push(x1,y1,z1, x2,y2,z2, x1,DEPTH,z1);
+    skirtV.push(x2,y2,z2, x2,DEPTH,z2, x1,DEPTH,z1);
+  }
+  const sg = new THREE.BufferGeometry();
+  sg.setAttribute('position', new THREE.Float32BufferAttribute(skirtV,3));
+  sg.computeVertexNormals();
+  scene.add(new THREE.Mesh(sg, new THREE.MeshStandardMaterial({
+    color:0xa8926f, flatShading:true, roughness:1, side:THREE.DoubleSide
+  })));
 
   buildGrass();
   buildRocks();
@@ -319,7 +419,7 @@ function buildGrass(){
     const x=(Math.random()-0.5)*WORLD*0.96;
     const z=(Math.random()-0.5)*WORLD*0.96;
     const y=heightAt(x,z);
-    const t=y/(150*exag);
+    const t=y/(peak*exag);
     if(t>0.72 || slopeAt(x,z)>0.9) continue;          // no grass on cliffs/peaks
     const s=0.7+Math.random()*1.5;
     d.position.set(x,y,z);
@@ -545,8 +645,18 @@ async function boot(){
       label = await reverseGeocode(loc.lat, loc.lon);
     }
     statusEl.textContent = 'Reading the land';
-    try{ el = await fetchElevation(loc.lat, loc.lon); }
-    catch(e){ el = proceduralElevation(); real = false; }
+    try{
+      el = await fetchElevation(loc.lat, loc.lon);
+    }catch(e1){
+      console.warn('Open-Meteo failed:', e1.message, '— trying OpenTopoData');
+      statusEl.textContent = 'Trying another source';
+      try{
+        el = await fetchElevationOTD(loc.lat, loc.lon);
+      }catch(e2){
+        console.warn('OpenTopoData failed:', e2.message, '— using procedural');
+        el = proceduralElevation(); real = false;
+      }
+    }
   }else{
     el = proceduralElevation(); real = false;
     label = 'An imagined place';
@@ -564,7 +674,8 @@ async function boot(){
   $('placeName').textContent = label || 'Your terrain';
   $('placeMeta').textContent = loc
     ? `${loc.lat.toFixed(3)}, ${loc.lon.toFixed(3)} · ${SPAN_KM}km · `
-      + (real ? `${Math.round(minH)}–${Math.round(maxH)}m` : 'simulated relief')
+      + (real ? `${Math.round(minH)}–${Math.round(maxH)}m real elevation`
+            : 'simulated relief')
     : 'procedurally generated';
 
   $('place').style.display='block';
