@@ -371,6 +371,7 @@ function slopeAt(x,z){
    5. GRASS — instanced blades that sway
    ============================================================ */
 const MAX_GRASS = 26000;
+const grassTime = {value:0};          // must exist before buildGrass runs
 
 function buildGrass(){
   const blade = new THREE.BufferGeometry();
@@ -385,11 +386,18 @@ function buildGrass(){
   const mat = new THREE.MeshStandardMaterial({
     color:0x86ad5c, side:THREE.DoubleSide, roughness:1, flatShading:true
   });
+  // Built from char codes so no HTML-escaping / minifier can mangle the
+  // angle brackets. If the token is ever missing, we skip the sway rather
+  // than producing a broken shader.
+  const LT = String.fromCharCode(60), GT = String.fromCharCode(62);
+  const TOKEN = '#include ' + LT + 'begin_vertex' + GT;
+
   mat.onBeforeCompile = s=>{
     s.uniforms.uT = grassTime;
+    if(s.vertexShader.indexOf(TOKEN) === -1) return;   // fail soft
     s.vertexShader = 'uniform float uT;\n' + s.vertexShader.replace(
-      '#include <begin_vertex>',
-      `#include <begin_vertex>
+      TOKEN,
+      TOKEN + `
        float sway = transformed.y * 0.07;
        vec4 ip = instanceMatrix[3];
        transformed.x += sin(uT*1.4 + ip.x*0.05 + ip.z*0.04) * sway * 3.0;
@@ -423,7 +431,6 @@ function buildGrass(){
   grassMesh.count = Math.floor(n*0.6);
   scene.add(grassMesh);
 }
-const grassTime = {value:0};
 
 function reseatGrass(){                                 // after exaggeration change
   if(!grassMesh) return;
@@ -668,6 +675,29 @@ async function boot(){
   setTimeout(()=>$('loader').remove(), 1000);
 }
 
+function reveal(){
+  $('place').style.display='block';
+  $('panel').style.display='block';
+  $('toggle').style.display='block';
+  $('hint').style.display='block';
+  renderer.domElement.style.cursor='grab';
+  started = true;
+  $('loader').classList.add('gone');
+  setTimeout(()=>{ const l=$('loader'); if(l) l.remove(); }, 1000);
+}
+
+function fail(err){
+  console.error(err);
+  statusEl.textContent = 'Something broke';
+  subEl.textContent = String((err && err.message) || err);
+  $('enable').classList.remove('hide');
+  $('enable').textContent = 'Try again';
+}
+
+// surface anything that escapes, instead of a silent dead page
+addEventListener('error', e=>{ if(!started) fail(e.error||e.message); });
+addEventListener('unhandledrejection', e=>{ if(!started) fail(e.reason); });
+
 $('enable').addEventListener('click', ()=>{
   boot().catch(err=>{
     console.error('boot failed:', err);
@@ -678,16 +708,13 @@ $('enable').addEventListener('click', ()=>{
       ctl.dist = 470; ctl.phi = 0.62;
       $('placeName').textContent = 'An imagined place';
       $('placeMeta').textContent = 'location unavailable · procedurally generated';
-      $('place').style.display='block';
-      $('panel').style.display='block';
-      $('toggle').style.display='block';
-      $('hint').style.display='block';
-      started = true;
-      $('loader').classList.add('gone');
-      setTimeout(()=>$('loader').remove(), 1000);
+      reveal();
     }catch(e2){
-      statusEl.textContent = 'Something broke';
-      subEl.textContent = String(err && err.message || err);
+      fail(e2);
     }
   });
 });
+
+</script>
+</body>
+</html>
