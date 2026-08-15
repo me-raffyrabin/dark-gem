@@ -4,7 +4,6 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>STORMFORGE — PlayCanvas duel POC</title>
-<script src="./playcanvas.min.js"></script>
 <style>
   :root{
     --void:#05060b;
@@ -73,11 +72,23 @@
            text-transform:uppercase}
   #boot p{margin:0;font-size:12px;letter-spacing:.2em;color:var(--dim)}
   #boot.gone{display:none}
+  #boot pre{display:none;max-width:min(90vw,760px);margin:0;padding:14px 16px;text-align:left;
+            white-space:pre-wrap;word-break:break-word;font-family:var(--ui-mono);font-size:11px;
+            line-height:1.6;color:#ff9a7a;background:rgba(255,106,43,.07);
+            border-left:2px solid var(--ember)}
+  #boot pre.show{display:block}
+  #diag{position:fixed;left:10px;bottom:8px;z-index:6;font-family:var(--ui-mono);font-size:10px;
+        letter-spacing:.12em;color:rgba(232,230,223,.3);pointer-events:none}
   @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
 <body>
-<div id="boot"><h1>Stormforge</h1><p>Loading arena…</p></div>
+<div id="boot">
+  <h1>Stormforge</h1>
+  <p id="boot-msg">Loading engine…</p>
+  <pre id="boot-err"></pre>
+</div>
+<div id="diag">booting</div>
 
 <div id="hud">
   <div class="fighter left p1">
@@ -108,7 +119,7 @@
 <canvas id="app"></canvas>
 
 <script>
-(function () {
+window.STORMFORGE = function () {
   'use strict';
 
   /* ─────────────────────────── tuning ─────────────────────────── */
@@ -602,8 +613,80 @@
   });
 
   app.start();
+  Diag.ok('engine ' + (pc.version || '?') + ' · ' +
+          (app.graphicsDevice.isWebGPU ? 'WebGPU' : app.graphicsDevice.isWebGL2 ? 'WebGL2' : 'WebGL1'));
   document.getElementById('boot').classList.add('gone');
   setTimeout(() => document.getElementById('legend').classList.add('hide'), 11000);
+};
+</script>
+<script>
+/* ── loader + crash reporter: this page must never fail silently ── */
+(function () {
+  var msgEl = document.getElementById('boot-msg');
+  var errEl = document.getElementById('boot-err');
+  var diag  = document.getElementById('diag');
+
+  window.Diag = {
+    ok: function (t) { diag.textContent = t; },
+    say: function (t) { msgEl.textContent = t; }
+  };
+
+  function fail(where, err) {
+    document.getElementById('boot').classList.remove('gone');
+    msgEl.textContent = 'Failed at: ' + where;
+    errEl.classList.add('show');
+    errEl.textContent = (err && (err.stack || err.message)) || String(err);
+    diag.textContent = 'error';
+  }
+  window.addEventListener('error', function (e) {
+    if (e.message) fail('runtime', e.error || e.message + ' (' + (e.filename || '') + ':' + e.lineno + ')');
+  });
+  window.addEventListener('unhandledrejection', function (e) { fail('promise', e.reason); });
+
+  var SOURCES = [
+    'https://cdn.jsdelivr.net/npm/playcanvas@2.11.8/build/playcanvas.min.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/playcanvas/2.11.8/playcanvas.min.js',
+    'https://unpkg.com/playcanvas@2.11.8/build/playcanvas.min.js',
+    'https://code.playcanvas.com/playcanvas-stable.min.js'
+  ];
+
+  function loadFrom(i) {
+    if (i >= SOURCES.length) {
+      fail('engine download', new Error(
+        'None of the CDN copies of PlayCanvas loaded.\n\n' +
+        SOURCES.join('\n') +
+        '\n\nUsually a blocked request (extension, corporate proxy, offline).'));
+      return;
+    }
+    Diag.say('Loading engine… (source ' + (i + 1) + ' of ' + SOURCES.length + ')');
+    var tag = document.createElement('script');
+    tag.src = SOURCES[i];
+    tag.crossOrigin = 'anonymous';
+    tag.onload = function () {
+      if (!window.pc || !window.pc.Application) { loadFrom(i + 1); return; }
+      run();
+    };
+    tag.onerror = function () { loadFrom(i + 1); };
+    document.head.appendChild(tag);
+  }
+
+  function run() {
+    var canvas = document.getElementById('app');
+    var gl = null;
+    try { gl = canvas.getContext('webgl2') || canvas.getContext('webgl'); } catch (e) {}
+    if (!gl) {
+      fail('WebGL', new Error('This browser reports no WebGL context. Check hardware acceleration is on.'));
+      return;
+    }
+    Diag.say('Building arena…');
+    try {
+      window.STORMFORGE();
+    } catch (e) {
+      fail('setup', e);
+    }
+  }
+
+  loadFrom(0);
 })();
 </script>
 </body>
