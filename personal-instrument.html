@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Personal Instrument — traits &amp; current state</title>
+<style>
+:root{
+  --paper:#E6EAE7;
+  --card:#F7F9F7;
+  --ink:#11242C;
+  --ink-2:#415C67;
+  --ink-3:#7B8F97;
+  --rule:#C7D0CC;
+  --signal:#0B45C9;
+  --moss:#3F7355;
+  --amber:#B4820A;
+  --plum:#7A3A55;
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+  --serif:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  background:var(--paper);
+  color:var(--ink);
+  font-family:var(--sans);
+  font-size:16px;
+  line-height:1.5;
+  padding-bottom:env(safe-area-inset-bottom);
+}
+.wrap{max-width:660px;margin:0 auto;padding:0 20px 72px}
+.eyebrow{
+  font-family:var(--mono);
+  font-size:11px;
+  letter-spacing:.16em;
+  text-transform:uppercase;
+  color:var(--ink-3);
+}
+h1,h2,h3{font-family:var(--serif);font-weight:600;letter-spacing:-.01em;margin:0}
+a{color:var(--signal)}
+button{font-family:inherit;font-size:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--signal);outline-offset:3px}
+
+/* ---------- progress tape ---------- */
+#tape{position:sticky;top:0;z-index:20;background:var(--paper);padding:14px 0 10px;border-bottom:1px solid var(--rule)}
+.tape-row{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:8px}
+.tape-graph{position:relative;height:18px}
+.tape-ticks{position:absolute;inset:0;display:flex;justify-content:space-between;align-items:flex-end}
+.tape-ticks i{width:1px;background:var(--rule);height:6px;display:block}
+.tape-ticks i.major{height:12px;background:var(--ink-3)}
+.tape-fill{position:absolute;left:0;bottom:0;height:2px;background:var(--signal);transition:width .35s ease}
+.tape-label{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-2)}
+
+/* ---------- intro ---------- */
+.masthead{padding:44px 0 8px}
+.masthead h1{font-size:clamp(34px,9vw,52px);line-height:1.02}
+.masthead h1 em{font-style:italic;color:var(--signal)}
+.lede{font-family:var(--serif);font-size:19px;line-height:1.55;color:var(--ink-2);margin:18px 0 0;max-width:52ch}
+.specs{border-top:1px solid var(--rule);margin-top:28px}
+.spec{display:grid;grid-template-columns:26px 1fr;gap:14px;padding:14px 0;border-bottom:1px solid var(--rule);align-items:baseline}
+.spec .n{font-family:var(--mono);font-size:11px;color:var(--ink-3)}
+.spec h3{font-size:17px}
+.spec p{margin:3px 0 0;font-size:14px;color:var(--ink-2)}
+.btn{
+  display:inline-flex;align-items:center;gap:10px;
+  background:var(--ink);color:var(--card);border:none;
+  padding:15px 24px;font-weight:600;letter-spacing:.01em;
+  border-radius:2px;
+}
+.btn:hover{background:var(--signal)}
+.btn.ghost{background:none;color:var(--ink-2);border:1px solid var(--rule);font-weight:500}
+.btn.ghost:hover{background:var(--card);color:var(--ink)}
+.note{font-size:13px;color:var(--ink-3);line-height:1.6}
+
+/* ---------- question ---------- */
+.qcard{padding:34px 0 0}
+.qhead{display:flex;gap:10px;align-items:baseline;margin-bottom:16px;flex-wrap:wrap}
+.qstem{font-family:var(--serif);font-size:clamp(23px,6vw,30px);line-height:1.28;margin:0 0 4px}
+.qframe{font-size:14px;color:var(--ink-2);margin:0 0 22px}
+.opts{list-style:none;margin:0;padding:0;border-top:1px solid var(--rule)}
+.opt{
+  display:grid;grid-template-columns:34px 1fr 14px;align-items:center;gap:12px;
+  width:100%;text-align:left;background:none;border:none;border-bottom:1px solid var(--rule);
+  padding:15px 4px;color:var(--ink);
+}
+.opt .grad{display:flex;align-items:flex-end;justify-content:center;height:30px}
+.opt .grad span{width:2px;background:var(--ink-3);display:block}
+.opt .lab{font-size:16px}
+.opt .dot{width:9px;height:9px;border:1px solid var(--ink-3);border-radius:50%}
+.opt:hover{background:var(--card)}
+.opt:hover .grad span{background:var(--signal)}
+.opt.sel .grad span{background:var(--signal);width:3px}
+.opt.sel .lab{font-weight:650;color:var(--signal)}
+.opt.sel .dot{background:var(--signal);border-color:var(--signal)}
+.qnav{display:flex;justify-content:space-between;align-items:center;margin-top:22px;gap:12px}
+.keyhint{font-family:var(--mono);font-size:11px;color:var(--ink-3);letter-spacing:.08em}
+.fade{animation:rise .28s ease}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* ---------- results ---------- */
+.rhead{padding:36px 0 6px}
+.rhead h1{font-size:clamp(30px,7.5vw,44px);line-height:1.05}
+.verdict{font-family:var(--serif);font-size:19px;line-height:1.55;color:var(--ink-2);margin:16px 0 0}
+.verdict b{color:var(--ink);font-weight:600}
+
+.index-block{background:var(--card);border:1px solid var(--rule);padding:22px 18px 16px;margin:26px 0 0}
+.index-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:20px}
+.index-val{font-family:var(--mono);font-size:34px;font-weight:600;letter-spacing:-.03em;line-height:1}
+.index-val small{font-size:14px;color:var(--ink-3);font-weight:400}
+.ruler{position:relative;height:52px}
+.ruler .bands{position:absolute;left:0;right:0;top:22px;height:8px;display:flex}
+.ruler .bands div{height:100%}
+.ruler .ticks{position:absolute;left:0;right:0;top:30px;height:10px;display:flex;justify-content:space-between}
+.ruler .ticks i{width:1px;height:5px;background:var(--rule)}
+.ruler .ticks i.major{height:10px;background:var(--ink-3)}
+.needle{position:absolute;top:0;width:2px;height:30px;background:var(--ink);transition:left .7s cubic-bezier(.2,.8,.2,1)}
+.needle::after{content:"";position:absolute;left:-4px;top:-6px;width:10px;height:10px;background:var(--ink);transform:rotate(45deg)}
+.scalekeys{display:flex;justify-content:space-between;margin-top:2px}
+.scalekeys span{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+
+.sec{margin-top:46px}
+.sec-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;border-bottom:1px solid var(--ink);padding-bottom:8px;margin-bottom:20px}
+.sec-head h2{font-size:22px}
+
+.gauges{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.gauge{background:var(--card);border:1px solid var(--rule);padding:16px 14px;text-align:center}
+.gauge svg{display:block;margin:0 auto}
+.gauge .gname{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);margin-bottom:10px}
+.gauge .gband{font-family:var(--serif);font-size:17px;margin-top:8px}
+.gauge .graw{font-family:var(--mono);font-size:11px;color:var(--ink-3);margin-top:3px}
+
+.trait{padding:16px 0;border-bottom:1px solid var(--rule)}
+.trait:first-child{border-top:1px solid var(--rule)}
+.trait-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.trait-name{font-family:var(--serif);font-size:18px}
+.trait-score{font-family:var(--mono);font-size:13px;color:var(--ink-2)}
+.tbar{position:relative;height:26px;margin-top:10px}
+.tbar .track{position:absolute;left:0;right:0;top:9px;height:3px;background:var(--rule)}
+.tbar .fill{position:absolute;left:0;top:9px;height:3px;background:var(--signal)}
+.tbar .mark{position:absolute;top:2px;width:2px;height:17px;background:var(--ink)}
+.tbar .mid{position:absolute;left:50%;top:4px;width:1px;height:13px;background:var(--ink-3)}
+.trait-read{font-size:14px;color:var(--ink-2);margin:8px 0 0}
+.poles{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);margin-top:2px}
+
+.driver{display:grid;grid-template-columns:38px 1fr;gap:14px;padding:18px 0;border-bottom:1px solid var(--rule)}
+.driver:first-of-type{border-top:1px solid var(--rule)}
+.driver .arrow{font-family:var(--mono);font-size:20px;line-height:1.1;font-weight:600}
+.driver .arrow small{display:block;font-size:9px;letter-spacing:.1em;color:var(--ink-3);font-weight:400}
+.driver h3{font-size:18px;margin-bottom:2px}
+.driver p{margin:6px 0 0;font-size:14.5px;color:var(--ink-2);line-height:1.55}
+.driver .src{font-family:var(--mono);font-size:10.5px;color:var(--ink-3);margin-top:8px;letter-spacing:.04em}
+.lift .arrow{color:var(--moss)}
+.drag .arrow{color:var(--plum)}
+.strength{height:2px;background:var(--rule);margin-top:10px;position:relative}
+.strength i{position:absolute;left:0;top:0;height:2px;background:var(--ink-3);display:block}
+
+.care{background:var(--card);border-left:3px solid var(--amber);padding:16px 18px;margin-top:22px;font-size:14.5px;color:var(--ink-2);line-height:1.6}
+.care b{color:var(--ink)}
+.refs{margin-top:14px;padding-left:18px}
+.refs li{font-size:13px;color:var(--ink-2);margin-bottom:7px;line-height:1.5}
+.footer-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:34px}
+.disclaim{margin-top:26px;padding-top:16px;border-top:1px solid var(--rule)}
+
+@media (max-width:430px){
+  .wrap{padding-left:16px;padding-right:16px}
+  .gauge{padding:14px 8px}
+  .gauges{gap:10px}
+}
+@media (max-width:330px){
+  .gauges{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important}
+}
+@media print{
+  body{background:#fff}
+  #tape,.footer-actions{display:none}
+  .index-block,.gauge,.care{border-color:#999}
+}
+</style>
+</head>
+<body>
+
+<div id="tape" hidden>
+  <div class="wrap" style="padding-bottom:0">
+    <div class="tape-row">
+      <span class="tape-label" id="tapeSection">Traits</span>
+      <span class="tape-label" id="tapeCount">01 / 40</span>
+    </div>
+    <div class="tape-graph">
+      <div class="tape-ticks" id="tapeTicks"></div>
+      <div class="tape-fill" id="tapeFill" style="width:0%"></div>
+    </div>
+  </div>
+</div>
+
+<div class="wrap" id="app"></div>
+
+<script>
+/* ============================================================
+   ITEM BANK
+   All items are drawn from published, freely usable instruments.
+   ============================================================ */
+
+const SCALES = {
+  accuracy: [
+    ["Very inaccurate",1],["Moderately inaccurate",2],["Neither",3],
+    ["Moderately accurate",4],["Very accurate",5]
+  ],
+  who: [
+    ["At no time",0],["Some of the time",1],["Less than half the time",2],
+    ["More than half the time",3],["Most of the time",4],["All of the time",5]
+  ],
+  freq: [
+    ["Never",0],["Almost never",1],["Sometimes",2],["Fairly often",3],["Very often",4]
+  ],
+  agree: [
+    ["Strongly disagree",1],["Disagree",2],["Neutral",3],["Agree",4],["Strongly agree",5]
+  ]
+};
+
+const SECTIONS = {
+  traits:{label:"Traits", frame:"How accurately does this describe you, generally?"},
+  body:{label:"Body & energy", frame:""},
+  wellbeing:{label:"Well-being", frame:"Over the last two weeks…"},
+  pressure:{label:"Pressure", frame:"In the last month, how often have you felt this way?"},
+  recovery:{label:"Recovery", frame:"How much do you agree?"}
+};
+
+const ITEMS = [
+  /* --- Mini-IPIP: Big Five, 20 items (Donnellan et al., 2006) --- */
+  {s:"traits",d:"E",t:"I am the life of the party.",sc:"accuracy"},
+  {s:"traits",d:"A",t:"I sympathize with others' feelings.",sc:"accuracy"},
+  {s:"traits",d:"C",t:"I get chores done right away.",sc:"accuracy"},
+  {s:"traits",d:"N",t:"I have frequent mood swings.",sc:"accuracy"},
+  {s:"traits",d:"O",t:"I have a vivid imagination.",sc:"accuracy"},
+  {s:"traits",d:"E",t:"I don't talk a lot.",sc:"accuracy",r:1},
+  {s:"traits",d:"A",t:"I am not interested in other people's problems.",sc:"accuracy",r:1},
+  {s:"traits",d:"C",t:"I often forget to put things back in their proper place.",sc:"accuracy",r:1},
+  {s:"traits",d:"N",t:"I am relaxed most of the time.",sc:"accuracy",r:1},
+  {s:"traits",d:"O",t:"I have difficulty understanding abstract ideas.",sc:"accuracy",r:1},
+  {s:"traits",d:"E",t:"I talk to a lot of different people at parties.",sc:"accuracy"},
+  {s:"traits",d:"A",t:"I feel others' emotions.",sc:"accuracy"},
+  {s:"traits",d:"C",t:"I like order.",sc:"accuracy"},
+  {s:"traits",d:"N",t:"I get upset easily.",sc:"accuracy"},
+  {s:"traits",d:"O",t:"I am not interested in abstract ideas.",sc:"accuracy",r:1},
+  {s:"traits",d:"E",t:"I keep in the background.",sc:"accuracy",r:1},
+  {s:"traits",d:"A",t:"I am not really interested in others.",sc:"accuracy",r:1},
+  {s:"traits",d:"C",t:"I make a mess of things.",sc:"accuracy",r:1},
+  {s:"traits",d:"N",t:"I seldom feel blue.",sc:"accuracy",r:1},
+  {s:"traits",d:"O",t:"I do not have a good imagination.",sc:"accuracy",r:1},
+
+  /* --- Physical state: single-item measures from SF-36 / PSQI --- */
+  {s:"body",d:"P",t:"In general, how would you rate your health?",
+   opts:[["Poor",0],["Fair",25],["Good",50],["Very good",75],["Excellent",100]]},
+  {s:"body",d:"P",t:"Over the past month, how would you rate your overall sleep quality?",
+   opts:[["Very bad",0],["Fairly bad",33],["Fairly good",67],["Very good",100]]},
+  {s:"body",d:"P",t:"Over the past four weeks, how much of the time did you have a lot of energy?",
+   opts:[["None of the time",0],["A little of the time",25],["Some of the time",50],["Most of the time",75],["All of the time",100]]},
+  {s:"body",d:"P",t:"In a typical week, on how many days do you move enough to raise your heart rate for half an hour or more?",
+   opts:[["No days",0],["1–2 days",33],["3–4 days",67],["5–7 days",100]]},
+  {s:"body",d:"P",t:"Over the past four weeks, how much did bodily pain interfere with your normal work?",
+   opts:[["Not at all",100],["A little bit",75],["Moderately",50],["Quite a bit",25],["Extremely",0]]},
+
+  /* --- WHO-5 Well-Being Index --- */
+  {s:"wellbeing",d:"W",t:"I have felt cheerful and in good spirits.",sc:"who"},
+  {s:"wellbeing",d:"W",t:"I have felt calm and relaxed.",sc:"who"},
+  {s:"wellbeing",d:"W",t:"I have felt active and vigorous.",sc:"who"},
+  {s:"wellbeing",d:"W",t:"I woke up feeling fresh and rested.",sc:"who"},
+  {s:"wellbeing",d:"W",t:"My daily life has been filled with things that interest me.",sc:"who"},
+
+  /* --- PSS-4 (Cohen & Williamson, 1988) --- */
+  {s:"pressure",d:"S",t:"How often have you felt unable to control the important things in your life?",sc:"freq"},
+  {s:"pressure",d:"S",t:"How often have you felt confident about your ability to handle your personal problems?",sc:"freq",r:1},
+  {s:"pressure",d:"S",t:"How often have you felt that things were going your way?",sc:"freq",r:1},
+  {s:"pressure",d:"S",t:"How often have you felt difficulties were piling up so high you could not overcome them?",sc:"freq"},
+
+  /* --- Brief Resilience Scale (Smith et al., 2008) --- */
+  {s:"recovery",d:"R",t:"I tend to bounce back quickly after hard times.",sc:"agree"},
+  {s:"recovery",d:"R",t:"I have a hard time making it through stressful events.",sc:"agree",r:1},
+  {s:"recovery",d:"R",t:"It does not take me long to recover from a stressful event.",sc:"agree"},
+  {s:"recovery",d:"R",t:"It is hard for me to snap back when something bad happens.",sc:"agree",r:1},
+  {s:"recovery",d:"R",t:"I usually come through difficult times with little trouble.",sc:"agree"},
+  {s:"recovery",d:"R",t:"I tend to take a long time to get over setbacks in my life.",sc:"agree",r:1}
+];
+
+ITEMS.forEach((it,i)=>{ it.i=i; if(!it.opts) it.opts = SCALES[it.sc]; });
+
+/* ============================================================
+   STATE
+   ============================================================ */
+const answers = new Array(ITEMS.length).fill(null);
+let cursor = 0;
+let view = "intro";
+const app = document.getElementById("app");
+const tape = document.getElementById("tape");
+
+/* ============================================================
+   SCORING
+   ============================================================ */
+function raw(i){
+  const it = ITEMS[i], v = answers[i];
+  if(v===null) return 0;
+  if(!it.r) return v;
+  if(it.sc==="freq") return 4 - v;      // 0–4 scale
+  return 6 - v;                          // 1–5 scales
+}
+function domainSum(d){
+  return ITEMS.reduce((a,it)=> it.d===d ? a + raw(it.i) : a, 0);
+}
+function score(){
+  const big = {};
+  ["E","A","C","N","O"].forEach(d=>{
+    const s = domainSum(d);                 // 4–20
+    big[d] = { sum:s, pct: Math.round((s-4)/16*100) };
+  });
+  const whoRaw = domainSum("W");            // 0–25
+  const who = whoRaw*4;                     // 0–100
+  const pss = domainSum("S");               // 0–16
+  const stressPct = Math.round(pss/16*100);
+  const brsItems = ITEMS.filter(it=>it.d==="R");
+  const brs = brsItems.reduce((a,it)=>a+raw(it.i),0)/brsItems.length; // 1–5
+  const brsPct = Math.round((brs-1)/4*100);
+  const physItems = ITEMS.filter(it=>it.d==="P");
+  const phys = Math.round(physItems.reduce((a,it)=>a+raw(it.i),0)/physItems.length);
+  const index = Math.round(who*0.40 + (100-stressPct)*0.20 + brsPct*0.20 + phys*0.20);
+  return {big, whoRaw, who, pss, stressPct, brs, brsPct, phys, index};
+}
+
+const bandOf = (v, cuts, names) => {
+  for(let i=0;i<cuts.length;i++) if(v < cuts[i]) return names[i];
+  return names[names.length-1];
+};
+
+/* ============================================================
+   RENDER: INTRO
+   ============================================================ */
+function renderIntro(){
+  view="intro"; tape.hidden = true;
+  app.innerHTML = `
+  <header class="masthead">
+    <p class="eyebrow">40 items · about 6 minutes · nothing leaves this page</p>
+    <h1>A reading of<br>where you are<br><em>right now</em>.</h1>
+    <p class="lede">Five published instruments, asked one question at a time. The result separates two things people usually blur together: the traits you carry from year to year, and the state you happen to be in this month.</p>
+  </header>
+
+  <div class="specs">
+    <div class="spec"><span class="n">20</span><div><h3>Traits</h3><p>Mini-IPIP — the five-factor model in short form.</p></div></div>
+    <div class="spec"><span class="n">05</span><div><h3>Body &amp; energy</h3><p>Single-item health, sleep, energy, movement and pain measures.</p></div></div>
+    <div class="spec"><span class="n">05</span><div><h3>Well-being</h3><p>WHO-5 Well-Being Index, last two weeks.</p></div></div>
+    <div class="spec"><span class="n">04</span><div><h3>Pressure</h3><p>Perceived Stress Scale, short form.</p></div></div>
+    <div class="spec"><span class="n">06</span><div><h3>Recovery</h3><p>Brief Resilience Scale — how fast you come back.</p></div></div>
+  </div>
+
+  <div class="footer-actions">
+    <button class="btn" id="start">Begin the reading</button>
+  </div>
+  <p class="note" style="margin-top:18px">Answer on instinct rather than after deliberation — first reactions score more reliably on these scales. This is a self-report questionnaire, not a diagnosis.</p>
+  `;
+  document.getElementById("start").onclick = ()=>{ cursor=0; renderQuestion(); };
+}
+
+/* ============================================================
+   RENDER: QUESTION
+   ============================================================ */
+function buildTape(){
+  const t = document.getElementById("tapeTicks");
+  if(t.childElementCount) return;
+  let h="";
+  for(let i=0;i<ITEMS.length;i++) h += `<i class="${i%5===0?'major':''}"></i>`;
+  t.innerHTML = h;
+}
+function renderQuestion(){
+  view="q"; tape.hidden = false; buildTape();
+  const it = ITEMS[cursor], sec = SECTIONS[it.s];
+  document.getElementById("tapeSection").textContent = sec.label;
+  document.getElementById("tapeCount").textContent =
+    String(cursor+1).padStart(2,"0") + " / " + ITEMS.length;
+  document.getElementById("tapeFill").style.width = (cursor/ITEMS.length*100)+"%";
+
+  const opts = it.opts.map((o,i)=>{
+    const sel = answers[cursor]===o[1] ? " sel":"";
+    const h = 8 + i*(14/(it.opts.length-1||1));
+    return `<li><button class="opt${sel}" data-v="${o[1]}">
+      <span class="grad"><span style="height:${h+6}px"></span></span>
+      <span class="lab">${o[0]}</span>
+      <span class="dot"></span>
+    </button></li>`;
+  }).join("");
+
+  app.innerHTML = `
+  <div class="qcard fade">
+    <div class="qhead"><span class="eyebrow">${sec.label} · item ${cursor+1}</span></div>
+    ${sec.frame?`<p class="qframe">${sec.frame}</p>`:""}
+    <h2 class="qstem">${it.t}</h2>
+    <ul class="opts">${opts}</ul>
+    <div class="qnav">
+      <button class="btn ghost" id="back" ${cursor===0?"disabled style='opacity:.4'":""}>← Back</button>
+      <span class="keyhint">Keys 1–${it.opts.length}</span>
+    </div>
+  </div>`;
+
+  app.querySelectorAll(".opt").forEach(b=>{
+    b.onclick = ()=> choose(Number(b.dataset.v), b);
+  });
+  document.getElementById("back").onclick = ()=>{ if(cursor>0){cursor--;renderQuestion();} };
+}
+function choose(v, el){
+  answers[cursor] = v;
+  app.querySelectorAll(".opt").forEach(o=>o.classList.remove("sel"));
+  if(el) el.classList.add("sel");
+  const wait = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 170;
+  setTimeout(()=>{
+    if(cursor < ITEMS.length-1){ cursor++; renderQuestion(); }
+    else { document.getElementById("tapeFill").style.width="100%"; renderResults(); }
+  }, wait);
+}
+document.addEventListener("keydown", e=>{
+  if(view!=="q") return;
+  const n = Number(e.key);
+  const opts = ITEMS[cursor].opts;
+  if(n>=1 && n<=opts.length){
+    const btns = app.querySelectorAll(".opt");
+    choose(opts[n-1][1], btns[n-1]);
+  }
+  if(e.key==="ArrowLeft" && cursor>0){ cursor--; renderQuestion(); }
+});
+
+/* ============================================================
+   RENDER: RESULTS
+   ============================================================ */
+function arc(pct, color, label){
+  const R=42, CX=52, CY=52, START=220, SWEEP=260;
+  const pol=(a)=>{const r=(a-90)*Math.PI/180;return [CX+R*Math.cos(r), CY+R*Math.sin(r)];};
+  const path=(from,to)=>{
+    const [x1,y1]=pol(from),[x2,y2]=pol(to);
+    return `M${x1.toFixed(2)} ${y1.toFixed(2)} A${R} ${R} 0 ${to-from>180?1:0} 1 ${x2.toFixed(2)} ${y2.toFixed(2)}`;
+  };
+  let ticks="";
+  for(let i=0;i<=10;i++){
+    const a=START+SWEEP*(i/10), r=(a-90)*Math.PI/180;
+    const inner=i%5===0?R-9:R-5;
+    ticks+=`<line x1="${(CX+inner*Math.cos(r)).toFixed(2)}" y1="${(CY+inner*Math.sin(r)).toFixed(2)}"
+      x2="${(CX+(R-1)*Math.cos(r)).toFixed(2)}" y2="${(CY+(R-1)*Math.sin(r)).toFixed(2)}"
+      stroke="${i%5===0?'#7B8F97':'#C7D0CC'}" stroke-width="1"/>`;
+  }
+  return `<svg width="104" height="92" viewBox="0 0 104 92" role="img" aria-label="${label}: ${pct} out of 100">
+    <path d="${path(START,START+SWEEP)}" fill="none" stroke="#C7D0CC" stroke-width="6" stroke-linecap="butt"/>
+    <path d="${path(START,START+SWEEP*Math.max(pct,0.5)/100)}" fill="none" stroke="${color}" stroke-width="6" stroke-linecap="butt"/>
+    ${ticks}
+    <text x="52" y="58" text-anchor="middle" font-family="ui-monospace,Menlo,monospace"
+      font-size="21" font-weight="600" fill="#11242C">${pct}</text>
+    <text x="52" y="70" text-anchor="middle" font-family="ui-monospace,Menlo,monospace"
+      font-size="8" letter-spacing="1" fill="#7B8F97">/100</text>
+  </svg>`;
+}
+
+const TRAITS = [
+  {k:"N",name:"Emotional reactivity",lo:"Even-keeled",hi:"Highly reactive",
+   read:(p)=> p>=65 ? "You register stress early and strongly. That sensitivity is real information, but it also means load lands on you harder than it does on most people."
+        : p>=35 ? "You feel pressure without being ruled by it — upsets register, then pass."
+        : "You stay level under conditions that would rattle most people. The risk is noticing strain late, after it has already accumulated."},
+  {k:"C",name:"Conscientiousness",lo:"Flexible",hi:"Structured",
+   read:(p)=> p>=65 ? "You run on structure, order and follow-through. This is the trait most consistently linked to health behaviour and longevity — and the one most likely to turn into self-imposed pressure."
+        : p>=35 ? "You keep order where it matters and let the rest slide."
+        : "You work loosely and improvisationally. Under load, unclosed loops are the thing most likely to cost you."},
+  {k:"E",name:"Extraversion",lo:"Reserved",hi:"Outgoing",
+   read:(p)=> p>=65 ? "Other people are a power source for you. Long stretches without contact will read as flatness rather than fatigue."
+        : p>=35 ? "You move between company and solitude without much cost either way."
+        : "You refuel alone. Social demand spends energy you then have to earn back in quiet."},
+  {k:"A",name:"Agreeableness",lo:"Direct",hi:"Accommodating",
+   read:(p)=> p>=65 ? "You read and absorb other people's states easily. That builds strong bonds and also carries their weather into your own week."
+        : p>=35 ? "You cooperate readily but keep your own line."
+        : "You are frank and hold your position. Support networks take deliberate effort to maintain rather than forming by default."},
+  {k:"O",name:"Openness",lo:"Concrete",hi:"Exploratory",
+   read:(p)=> p>=65 ? "Novelty, ideas and imagination are load-bearing for you. A stretch of routine work registers as genuine depletion."
+        : p>=35 ? "You enjoy new ideas without needing a constant supply."
+        : "You prefer the concrete and the proven, and lose little to boredom in steady conditions."}
+];
+
+function drivers(s){
+  const B = s.big, out = [];
+  const push=(kind,title,weight,body,src)=>out.push({kind,title,weight:Math.round(weight),body,src});
+
+  if(B.N.pct>=55) push("drag","Emotional reactivity is setting the floor", B.N.pct,
+    `Your reactivity score (${B.N.pct}) is the single strongest personality-side predictor of how the rest of this reading came out. High reactivity raises the perceived size of everyday demands, which is visible here in a stress score of ${s.pss}/16 and a well-being score of ${s.who}/100. The trait doesn't move much; the load it acts on does.`,
+    "Big Five neuroticism ↔ subjective well-being, meta-analytic evidence");
+  if(B.N.pct>45 && B.N.pct<55) push("lift","Reactivity sits mid-scale", 48,
+    `At ${B.N.pct}, your emotional reactivity is close to the population midpoint — it is neither amplifying your current state nor protecting you from it. Whatever moved these numbers is mostly situational rather than dispositional.`,
+    "Big Five neuroticism ↔ subjective well-being");
+  if(B.N.pct<=45) push("lift","A low-reactivity baseline", 100-B.N.pct,
+    `You score ${B.N.pct} on emotional reactivity, meaning stressors land softer for you than for most people. This is doing quiet work behind your current numbers — it's why a stress score of ${s.pss}/16 hasn't dragged well-being down further.`,
+    "Big Five neuroticism ↔ subjective well-being");
+
+  if(s.brs>=3.0) push("lift","You recover fast", s.brsPct,
+    `Your resilience mean of ${s.brs.toFixed(2)} sits in the ${s.brs>=4.31?"high":"normal"} range. Resilience here means bounce-back speed, not toughness — and it predicts well-being over and above how much stress you're actually under.`,
+    "Brief Resilience Scale, Smith et al. 2008");
+  else push("drag","Setbacks are staying with you", 100-s.brsPct,
+    `Your resilience mean of ${s.brs.toFixed(2)} falls in the low range. Difficult events appear to be holding on longer than they need to, which compounds anything else on this page: each new demand arrives before the last one has cleared.`,
+    "Brief Resilience Scale, Smith et al. 2008");
+
+  if(s.stressPct>=50) push("drag","Demand is outrunning control", s.stressPct,
+    `At ${s.pss}/16, your perceived stress is above the usual adult average of roughly 4–6. Both of the items you scored highest measure control rather than workload — the felt sense of things piling up faster than you can direct them. That distinction matters, because control is more changeable than volume.`,
+    "Perceived Stress Scale-4, Cohen & Williamson 1988");
+
+  if(s.pss<=5) push("lift","Pressure is staying inside its banks", 100-s.stressPct,
+    `A stress score of ${s.pss}/16 is at or below the usual adult average. Both control items — handling problems, things going your way — scored well, which is the part of the scale that most strongly tracks well-being over time.`,
+    "Perceived Stress Scale-4, Cohen & Williamson 1988");
+  if(s.pss>5 && s.pss<8) push("drag","Pressure is present but not dominant", 46,
+    `At ${s.pss}/16 your perceived stress sits around the adult average. It is a background input to this reading rather than the thing setting it.`,
+    "Perceived Stress Scale-4, Cohen & Williamson 1988");
+
+  if(s.phys>55 && s.phys<70) push("drag","The physical base is the softest number", 100-s.phys,
+    `Your body-and-energy composite is ${s.phys}/100 — functional, not strong. Two of the five well-being items you answered (waking rested, feeling active) are physical, so this number puts a ceiling on that one.`,
+    "SF-36 vitality/health items; PSQI sleep-quality item");
+  if(s.phys<=55) push("drag","Sleep and physical energy are the drag", 100-s.phys,
+    `Your body-and-energy composite is ${s.phys}/100. Two of the five WHO-5 well-being items — waking rested and feeling active — are physical, so a low reading here mechanically pulls your well-being score down. This is usually the most tractable item on the list.`,
+    "SF-36 vitality/health items; PSQI sleep-quality item");
+  else if(s.phys>=70) push("lift","Your physical base is holding", s.phys,
+    `A body-and-energy composite of ${s.phys}/100 means sleep, energy and movement are working for you rather than against you — the most common structural drag on well-being isn't present in your reading.`,
+    "SF-36 vitality/health items; PSQI sleep-quality item");
+
+  if(B.C.pct>=60 && s.stressPct<50) push("lift","Structure is doing real work", B.C.pct,
+    `Conscientiousness of ${B.C.pct} paired with contained stress suggests your systems are absorbing load before it reaches you. This trait is the most reliable personality-side predictor of health behaviour over time.`,
+    "Conscientiousness ↔ health behaviour, longitudinal evidence");
+  if(B.C.pct<=40 && s.stressPct>=50) push("drag","Open loops are amplifying pressure", (100-B.C.pct+s.stressPct)/2,
+    `Low structure (${B.C.pct}) combined with high perceived stress tends to be self-feeding: unfinished threads become background demand, which is exactly what the control items on the stress scale pick up.`,
+    "Conscientiousness ↔ perceived stress");
+
+  if(B.A.pct>=65 && s.stressPct>=50) push("drag","You're carrying other people's weather", (B.A.pct+s.stressPct)/2,
+    `High agreeableness (${B.A.pct}) means you register others' emotional states automatically. Under your current stress level, that empathy is an additional input rather than a neutral one.`,
+    "Agreeableness ↔ empathic distress");
+
+  if(B.E.pct<=40 && s.who<50) push("drag","Low social input, low return", (100-B.E.pct),
+    `You refuel alone (extraversion ${B.E.pct}), which is not a problem in itself — but when well-being drops, the reserved profile tends to withdraw further, and contact is one of the few reliable levers on this scale.`,
+    "Extraversion ↔ positive affect");
+  if(B.E.pct>=60 && s.who>=50) push("lift","People are feeding the numbers", B.E.pct,
+    `Extraversion of ${B.E.pct} tracks positive affect closely. A meaningful share of your current well-being score is likely coming from contact rather than circumstance — worth knowing if your schedule changes.`,
+    "Extraversion ↔ positive affect");
+
+  const interest = answers[ITEMS.findIndex(i=>i.t.startsWith("My daily life"))];
+  if(B.O.pct>=60 && interest!==null && interest<=2) push("drag","Under-stimulated, not overworked", B.O.pct,
+    `You score ${B.O.pct} on openness but rated your days low on interest. For a high-openness profile that gap reads as flatness rather than fatigue — the fix is novelty, not rest.`,
+    "Openness ↔ engagement");
+  if(B.O.pct>=60 && interest!==null && interest>=4) push("lift","Your days are feeding your curiosity", B.O.pct,
+    `High openness (${B.O.pct}) plus a strong score on the interest item means the work in front of you is matched to how you're built. This is the most protective combination on the page.`,
+    "Openness ↔ engagement");
+
+  return out.sort((a,b)=>b.weight-a.weight).slice(0,4);
+}
+
+function renderResults(){
+  view="r"; tape.hidden = true;
+  const s = score();
+  const idxBand = bandOf(s.index,[35,55,72],["Depleted","Strained","Steady","Thriving"]);
+  const whoBand = bandOf(s.who,[29,51,75],["Very low","Low","Moderate","High"]);
+  const stressBand = bandOf(s.pss,[5,9,13],["Low","Moderate","High","Very high"]);
+  const brsBand = bandOf(s.brs,[3.0,4.31],["Low","Normal","High"]);
+  const physBand = bandOf(s.phys,[35,55,75],["Low","Fair","Good","Strong"]);
+  const gcolor = v => v>=70? "#3F7355" : v>=45? "#0B45C9" : "#B4820A";
+
+  const traitRows = TRAITS.map(t=>{
+    const p = s.big[t.k].pct;
+    const level = p>=65?"High":p>=35?"Mid":"Low";
+    return `<div class="trait">
+      <div class="trait-top"><span class="trait-name">${t.name}</span>
+        <span class="trait-score">${level} · ${p}</span></div>
+      <div class="tbar">
+        <div class="track"></div><div class="fill" style="width:${p}%"></div>
+        <div class="mid"></div><div class="mark" style="left:calc(${p}% - 1px)"></div>
+      </div>
+      <div class="poles"><span>${t.lo}</span><span>${t.hi}</span></div>
+      <p class="trait-read">${t.read(p)}</p>
+    </div>`;
+  }).join("");
+
+  const dRows = drivers(s).map(d=>`
+    <div class="driver ${d.kind}">
+      <div class="arrow">${d.kind==="lift"?"↑":"↓"}<small>${d.kind==="lift"?"LIFTS":"DRAGS"}</small></div>
+      <div>
+        <h3>${d.title}</h3>
+        <p>${d.body}</p>
+        <div class="strength"><i style="width:${d.weight}%"></i></div>
+        <div class="src">${d.src}</div>
+      </div>
+    </div>`).join("");
+
+  let ticks=""; for(let i=0;i<=20;i++) ticks+=`<i class="${i%5===0?'major':''}"></i>`;
+
+  const verdict = `Your current state reads <b>${idxBand.toLowerCase()}</b>. Well-being is <b>${whoBand.toLowerCase()}</b> at ${s.who}/100, perceived stress is <b>${stressBand.toLowerCase()}</b> at ${s.pss}/16, recovery speed is <b>${brsBand.toLowerCase()}</b>, and your physical base is <b>${physBand.toLowerCase()}</b>. The traits below don't change much across years — the four numbers above them can change within weeks.`;
+
+  const careNeeded = s.who <= 50;
+
+  app.innerHTML = `
+  <header class="rhead fade">
+    <p class="eyebrow">Reading complete · ${new Date().toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'})}</p>
+    <h1>${idxBand}.</h1>
+    <p class="verdict">${verdict}</p>
+  </header>
+
+  <div class="index-block">
+    <div class="index-top">
+      <span class="eyebrow">Composite state index</span>
+      <span class="index-val">${s.index}<small>/100</small></span>
+    </div>
+    <div class="ruler">
+      <div class="bands">
+        <div style="width:35%;background:#E3D9C4"></div>
+        <div style="width:20%;background:#CFDCE6"></div>
+        <div style="width:17%;background:#B9CFC2"></div>
+        <div style="width:28%;background:#9DBFAB"></div>
+      </div>
+      <div class="ticks">${ticks}</div>
+      <div class="needle" id="needle" style="left:0%"></div>
+    </div>
+    <div class="scalekeys"><span>Depleted</span><span>Strained</span><span>Steady</span><span>Thriving</span></div>
+    <p class="note" style="margin-top:12px">Weighted: well-being 40%, physical base 20%, recovery 20%, freedom from stress 20%.</p>
+  </div>
+
+  <section class="sec">
+    <div class="sec-head"><h2>Current state</h2><span class="eyebrow">Last 2–4 weeks</span></div>
+    <div class="gauges">
+      <div class="gauge"><div class="gname">Well-being</div>${arc(s.who,gcolor(s.who),"Well-being")}
+        <div class="gband">${whoBand}</div><div class="graw">WHO-5 · raw ${s.whoRaw}/25</div></div>
+      <div class="gauge"><div class="gname">Perceived stress</div>${arc(s.stressPct,gcolor(100-s.stressPct),"Perceived stress")}
+        <div class="gband">${stressBand}</div><div class="graw">PSS-4 · raw ${s.pss}/16</div></div>
+      <div class="gauge"><div class="gname">Recovery speed</div>${arc(s.brsPct,gcolor(s.brsPct),"Recovery")}
+        <div class="gband">${brsBand}</div><div class="graw">BRS · mean ${s.brs.toFixed(2)}/5</div></div>
+      <div class="gauge"><div class="gname">Physical base</div>${arc(s.phys,gcolor(s.phys),"Physical base")}
+        <div class="gband">${physBand}</div><div class="graw">Health · sleep · energy · pain</div></div>
+    </div>
+  </section>
+
+  <section class="sec">
+    <div class="sec-head"><h2>What's driving it</h2><span class="eyebrow">Ranked by weight</span></div>
+    ${dRows}
+    <p class="note" style="margin-top:14px">Bars show each factor's relative weight in your own reading, not a population comparison. These are associations between your answers, not proven causes.</p>
+  </section>
+
+  <section class="sec">
+    <div class="sec-head"><h2>The traits underneath</h2><span class="eyebrow">Mini-IPIP</span></div>
+    ${traitRows}
+    <p class="note" style="margin-top:14px">Scores are positions on a scale, not verdicts. Each end carries its own advantages.</p>
+  </section>
+
+  ${careNeeded ? `<div class="care">
+    <b>One thing worth flagging.</b> A WHO-5 score of ${s.who} sits in the range where the scale's authors suggest a longer conversation is warranted. It isn't a diagnosis of anything — the questionnaire can't do that — but if this reflects how the past few weeks have genuinely felt, it's worth raising with a doctor or a mental health professional who can look at it properly with you.
+  </div>` : ``}
+
+  <section class="sec">
+    <div class="sec-head"><h2>What you answered</h2><span class="eyebrow">Sources</span></div>
+    <ul class="refs">
+      <li><b>Mini-IPIP</b> — Donnellan, Oswald, Baird &amp; Lucas (2006), <i>Psychological Assessment</i>. 20-item public-domain short form of the five-factor model.</li>
+      <li><b>WHO-5 Well-Being Index</b> — WHO Regional Office for Europe (1998); reviewed in Topp et al. (2015), <i>Psychotherapy and Psychosomatics</i>. Free to use.</li>
+      <li><b>PSS-4</b> — Cohen &amp; Williamson (1988), short form of Cohen, Kamarck &amp; Mermelstein (1983).</li>
+      <li><b>Brief Resilience Scale</b> — Smith et al. (2008), <i>International Journal of Behavioral Medicine</i>.</li>
+      <li><b>Physical items</b> — general health, energy and pain items adapted from the SF-36 (Ware &amp; Sherbourne, 1992); sleep-quality item from the PSQI (Buysse et al., 1989).</li>
+    </ul>
+    <div class="disclaim">
+      <p class="note">These are validated research instruments, but this page is not a clinical assessment and gives no diagnosis. Short-form scales trade precision for speed, self-report drifts with mood, and the composite index is a reading aid rather than a published measure. Everything is computed in your browser and nothing is stored or sent anywhere — closing this page erases it.</p>
+    </div>
+  </section>
+
+  <div class="footer-actions">
+    <button class="btn" onclick="window.print()">Save as PDF</button>
+    <button class="btn ghost" id="again">Start over</button>
+  </div>`;
+
+  document.getElementById("again").onclick = ()=>{
+    answers.fill(null); cursor=0; window.scrollTo(0,0); renderIntro();
+  };
+  window.scrollTo(0,0);
+  setTimeout(()=>{ const n=document.getElementById("needle"); if(n) n.style.left = `calc(${s.index}% - 1px)`; }, 120);
+}
+
+renderIntro();
+</script>
+</body>
+</html>
