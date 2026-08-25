@@ -1,0 +1,1152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The Copperplate — Numerology &amp; Tarot Readings</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,400;6..96,500;6..96,700&family=Spectral:ital,wght@0,300;0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#0E1A17;
+  --ink-2:#132623;
+  --plate:#16302B;
+  --plate-2:#1B3A33;
+  --bone:#F0E8D6;
+  --bone-dim:#9FAEA4;
+  --copper:#B87A47;
+  --copper-lit:#E3A868;
+  --verdigris:#6FB3A0;
+  --oxblood:#9C4038;
+  --rule:rgba(184,122,71,.32);
+  --rule-soft:rgba(240,232,214,.14);
+  --display:"Bodoni Moda",Didot,"Times New Roman",serif;
+  --body:"Spectral",Georgia,serif;
+  --data:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  --card-w:104px;
+  --card-h:170px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:
+    radial-gradient(120% 80% at 50% -10%, rgba(111,179,160,.10), transparent 60%),
+    radial-gradient(90% 60% at 50% 110%, rgba(184,122,71,.10), transparent 60%),
+    var(--ink);
+  color:var(--bone);
+  font-family:var(--body);
+  font-weight:300;
+  font-size:17px;
+  line-height:1.62;
+  -webkit-font-smoothing:antialiased;
+  min-height:100vh;
+  padding:0 0 96px;
+}
+.wrap{max-width:900px;margin:0 auto;padding:0 20px}
+
+/* ---------- masthead ---------- */
+.masthead{padding:52px 0 28px;text-align:center}
+.masthead .mark{
+  width:46px;height:46px;margin:0 auto 18px;display:block;opacity:.9
+}
+.masthead h1{
+  font-family:var(--display);
+  font-weight:400;
+  font-size:clamp(34px,7.5vw,58px);
+  line-height:1.02;
+  margin:0;
+  letter-spacing:.005em;
+}
+.masthead h1 em{font-style:italic;color:var(--copper-lit)}
+.masthead p{
+  margin:14px auto 0;max-width:44ch;color:var(--bone-dim);
+  font-size:15.5px;line-height:1.6
+}
+.rule-orn{display:flex;align-items:center;gap:12px;justify-content:center;margin:26px 0 0}
+.rule-orn i{display:block;height:1px;width:min(180px,26vw);background:linear-gradient(90deg,transparent,var(--rule),transparent)}
+.rule-orn b{width:5px;height:5px;background:var(--copper);transform:rotate(45deg)}
+
+/* ---------- plates (steps) ---------- */
+.plate{
+  border:1px solid var(--rule);
+  background:linear-gradient(160deg,var(--plate),var(--ink-2) 70%);
+  padding:clamp(20px,4.4vw,38px);
+  margin:26px 0;
+  position:relative;
+  box-shadow:0 22px 60px -34px rgba(0,0,0,.95), inset 0 1px 0 rgba(240,232,214,.05);
+}
+.plate::after{
+  content:"";position:absolute;inset:5px;border:1px solid var(--rule-soft);pointer-events:none
+}
+.plate[hidden]{display:none}
+.eyebrow{
+  font-family:var(--data);font-size:11px;letter-spacing:.22em;text-transform:uppercase;
+  color:var(--copper-lit);margin:0 0 10px;display:flex;align-items:center;gap:10px
+}
+.eyebrow::after{content:"";flex:1;height:1px;background:var(--rule)}
+h2{
+  font-family:var(--display);font-weight:400;font-size:clamp(23px,4.4vw,32px);
+  margin:0 0 8px;line-height:1.16
+}
+h3{
+  font-family:var(--display);font-weight:500;font-size:20px;margin:0 0 6px;line-height:1.2
+}
+.lede{color:var(--bone-dim);margin:0 0 22px;font-size:16px;max-width:56ch}
+.note{
+  font-size:14px;color:var(--bone-dim);border-left:2px solid var(--rule);
+  padding:2px 0 2px 14px;margin:16px 0 0;max-width:60ch;line-height:1.55
+}
+
+/* ---------- form ---------- */
+label.field{display:block;margin:0 0 6px;font-family:var(--data);font-size:11.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--bone-dim)}
+input[type=text],textarea{
+  width:100%;background:rgba(14,26,23,.6);border:1px solid var(--rule-soft);
+  color:var(--bone);font-family:var(--display);font-size:22px;font-weight:400;
+  padding:14px 16px;outline:none;border-radius:0;transition:border-color .2s,background .2s
+}
+textarea{font-family:var(--body);font-size:18px;line-height:1.5;resize:vertical;min-height:104px}
+input[type=text]::placeholder,textarea::placeholder{color:rgba(159,174,164,.5);font-style:italic}
+input[type=text]:focus,textarea:focus{border-color:var(--copper);background:rgba(14,26,23,.9)}
+input[type=text]:focus-visible,textarea:focus-visible{box-shadow:0 0 0 3px rgba(184,122,71,.22)}
+
+.btn{
+  appearance:none;border:1px solid var(--copper);background:transparent;color:var(--copper-lit);
+  font-family:var(--data);font-size:12px;letter-spacing:.2em;text-transform:uppercase;
+  padding:14px 26px;cursor:pointer;transition:background .2s,color .2s,transform .1s;
+  border-radius:0
+}
+.btn:hover{background:var(--copper);color:#12211D}
+.btn:active{transform:translateY(1px)}
+.btn:focus-visible{outline:2px solid var(--verdigris);outline-offset:3px}
+.btn[disabled]{opacity:.35;cursor:not-allowed}
+.btn.ghost{border-color:var(--rule-soft);color:var(--bone-dim)}
+.btn.ghost:hover{background:rgba(240,232,214,.08);color:var(--bone)}
+.btn.solid{background:var(--copper);color:#12211D}
+.btn.solid:hover{background:var(--copper-lit)}
+.actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:24px;align-items:center}
+.err{color:var(--oxblood);font-family:var(--data);font-size:12px;letter-spacing:.06em;margin-top:10px;min-height:1em}
+
+/* ---------- signature: the name struck as arithmetic ---------- */
+.strip{
+  display:flex;flex-wrap:wrap;gap:3px 2px;margin:6px 0 4px;padding:20px 12px;
+  background:
+    repeating-linear-gradient(90deg,rgba(240,232,214,.035) 0 1px,transparent 1px 34px),
+    rgba(14,26,23,.5);
+  border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);
+  align-items:flex-end;justify-content:center;overflow-x:auto
+}
+.glyph{
+  width:30px;flex:0 0 auto;text-align:center;opacity:0;transform:translateY(6px);
+  animation:stamp .38s cubic-bezier(.2,.7,.3,1) forwards
+}
+@keyframes stamp{to{opacity:1;transform:none}}
+.glyph .l{font-family:var(--display);font-size:24px;line-height:1;display:block}
+.glyph .v{font-family:var(--data);font-size:12px;line-height:1;display:block;margin-top:7px;color:var(--bone-dim)}
+.glyph .tick{display:block;height:7px;width:1px;margin:0 auto 5px;background:var(--rule-soft)}
+.glyph.vowel .l{color:var(--copper-lit)}
+.glyph.vowel .tick{background:var(--copper);height:11px}
+.glyph.vowel .v{color:var(--copper)}
+.glyph.space{width:16px}
+.strip-key{display:flex;gap:20px;flex-wrap:wrap;font-family:var(--data);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--bone-dim);margin:14px 0 0;justify-content:center}
+.strip-key span{display:flex;align-items:center;gap:7px}
+.strip-key i{width:9px;height:9px;display:block;background:var(--bone-dim)}
+.strip-key i.c{background:var(--copper)}
+
+/* ---------- numerology cards ---------- */
+.nums{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1px;background:var(--rule-soft);border:1px solid var(--rule-soft);margin-top:26px}
+.num{background:var(--ink-2);padding:22px 20px}
+.num .k{font-family:var(--data);font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--bone-dim)}
+.num .big{font-family:var(--display);font-size:56px;line-height:.95;margin:10px 0 4px;color:var(--copper-lit);font-weight:400}
+.num .t{font-family:var(--display);font-style:italic;font-size:19px;color:var(--bone)}
+.num .math{font-family:var(--data);font-size:11.5px;color:var(--bone-dim);margin-top:10px;word-break:break-all;line-height:1.5}
+.num p{font-size:15px;margin:12px 0 0;color:var(--bone-dim);line-height:1.55}
+.num .tag{font-family:var(--data);font-size:11px;letter-spacing:.08em;margin-top:12px;color:var(--verdigris)}
+.num .tag.sh{color:var(--oxblood)}
+
+/* ---------- the deck ---------- */
+.deckwrap{margin:22px -6px 0;padding:26px 0 30px;position:relative}
+.deckwrap::before,.deckwrap::after{content:"";position:absolute;top:0;bottom:0;width:40px;pointer-events:none;z-index:3}
+.deckwrap::before{left:0;background:linear-gradient(90deg,var(--plate),transparent)}
+.deckwrap::after{right:0;background:linear-gradient(270deg,var(--ink-2),transparent)}
+.ribbon{display:flex;overflow-x:auto;overflow-y:hidden;padding:34px 30px 26px;scrollbar-width:thin;scroll-snap-type:x proximity}
+.ribbon::-webkit-scrollbar{height:6px}
+.ribbon::-webkit-scrollbar-thumb{background:var(--rule)}
+.back{
+  flex:0 0 auto;width:var(--card-w);height:var(--card-h);margin-left:-46px;
+  border:1px solid var(--copper);background:
+    repeating-linear-gradient(45deg,rgba(111,179,160,.16) 0 2px,transparent 2px 7px),
+    repeating-linear-gradient(-45deg,rgba(111,179,160,.16) 0 2px,transparent 2px 7px),
+    linear-gradient(160deg,#1C4139,#12241F);
+  cursor:pointer;position:relative;transition:transform .22s cubic-bezier(.2,.7,.3,1),box-shadow .22s,opacity .3s;
+  box-shadow:0 10px 24px -16px #000;scroll-snap-align:center
+}
+.back:first-child{margin-left:0}
+.back::before{content:"";position:absolute;inset:5px;border:1px solid rgba(184,122,71,.5)}
+.back::after{content:"";position:absolute;left:50%;top:50%;width:16px;height:16px;margin:-8px 0 0 -8px;background:var(--copper);transform:rotate(45deg);opacity:.85}
+.back:hover,.back:focus-visible{transform:translateY(-22px);z-index:2;box-shadow:0 22px 34px -20px #000;outline:none}
+.back:focus-visible{border-color:var(--verdigris)}
+.back.taken{opacity:0;pointer-events:none;transform:translateY(-70px) scale(.9)}
+.deckmeta{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;font-family:var(--data);font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--bone-dim);padding:0 4px}
+
+/* ---------- slots + faces ---------- */
+.slots{display:grid;grid-template-columns:repeat(3,1fr);gap:clamp(8px,2.5vw,22px);margin:8px 0 0}
+.slot{text-align:center}
+.slot .pos{font-family:var(--data);font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--copper-lit);margin-bottom:4px}
+.slot .posq{font-size:13px;color:var(--bone-dim);font-style:italic;margin-bottom:12px;line-height:1.35;min-height:2.7em}
+.holder{
+  aspect-ratio:104/170;width:100%;border:1px dashed var(--rule-soft);position:relative;
+  perspective:1000px;background:rgba(14,26,23,.35)
+}
+.holder .empty{position:absolute;inset:0;display:grid;place-items:center;font-family:var(--display);font-size:34px;color:rgba(240,232,214,.14)}
+.flipper{position:absolute;inset:0;transform-style:preserve-3d;transition:transform .8s cubic-bezier(.4,.05,.2,1)}
+.flipper.up{transform:rotateY(180deg)}
+.flipper .side{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden}
+.flipper .b{
+  border:1px solid var(--copper);background:
+    repeating-linear-gradient(45deg,rgba(111,179,160,.16) 0 2px,transparent 2px 7px),
+    repeating-linear-gradient(-45deg,rgba(111,179,160,.16) 0 2px,transparent 2px 7px),
+    linear-gradient(160deg,#1C4139,#12241F)
+}
+.flipper .b::after{content:"";position:absolute;left:50%;top:50%;width:16px;height:16px;margin:-8px 0 0 -8px;background:var(--copper);transform:rotate(45deg);opacity:.85}
+.flipper .f{transform:rotateY(180deg)}
+.face{
+  position:absolute;inset:0;background:linear-gradient(170deg,#F3EBD9,#E2D7BF);
+  border:1px solid #8A6B44;color:#22332E;display:flex;flex-direction:column;
+  padding:8px 6px;overflow:hidden
+}
+.face::before{content:"";position:absolute;inset:4px;border:1px solid rgba(138,107,68,.55);pointer-events:none}
+.face .art{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:6px 4px}
+.face.rev .art{transform:rotate(180deg)}
+.face .numeral{font-family:var(--display);font-weight:400;font-size:clamp(22px,6vw,34px);line-height:1;color:#7A4E28}
+.face .pips{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:3px;max-width:78%}
+.face .pips svg{width:clamp(11px,3.2vw,17px);height:auto;display:block}
+.face .court{font-family:var(--display);font-style:italic;font-size:13px;color:#7A4E28}
+.face .cname{
+  font-family:var(--display);font-size:clamp(8.5px,2.3vw,11px);text-transform:uppercase;
+  letter-spacing:.08em;text-align:center;line-height:1.25;padding-top:6px;
+  border-top:1px solid rgba(138,107,68,.4);margin:0 4px
+}
+.face .revtag{position:absolute;left:0;right:0;bottom:-1px;font-family:var(--data);font-size:8px;letter-spacing:.16em;text-align:center;background:var(--oxblood);color:#F3EBD9;padding:2px 0}
+.face.rev .cname{margin-bottom:12px}
+
+/* ---------- reading ---------- */
+.report h2.rtitle{font-size:clamp(26px,5.4vw,40px);margin-bottom:4px}
+.report .byline{font-family:var(--data);font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--bone-dim);margin:0 0 22px}
+.qblock{
+  border-left:2px solid var(--copper);padding:6px 0 6px 18px;margin:0 0 30px;
+  font-family:var(--display);font-style:italic;font-size:clamp(19px,3.6vw,25px);line-height:1.35
+}
+.sec{margin:34px 0 0;padding-top:26px;border-top:1px solid var(--rule-soft)}
+.sec:first-of-type{border-top:0;padding-top:0}
+.sec .lbl{font-family:var(--data);font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--copper-lit);margin-bottom:8px}
+.sec p{margin:0 0 14px}
+.sec p:last-child{margin-bottom:0}
+.cardread{display:grid;grid-template-columns:118px 1fr;gap:22px;align-items:start;margin-top:6px}
+.cardread .mini{position:relative;aspect-ratio:104/170}
+.cardread .mini .face{position:absolute;inset:0}
+.kw{font-family:var(--data);font-size:11.5px;letter-spacing:.1em;color:var(--verdigris);margin:0 0 12px;text-transform:uppercase}
+.kw.rev{color:var(--oxblood)}
+.tally{display:flex;flex-wrap:wrap;gap:1px;background:var(--rule-soft);border:1px solid var(--rule-soft);margin:20px 0 0}
+.tally div{background:var(--ink-2);padding:14px 18px;flex:1 1 150px}
+.tally .k{font-family:var(--data);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--bone-dim)}
+.tally .v{font-family:var(--display);font-size:24px;margin-top:4px}
+.footnote{margin-top:40px;padding-top:20px;border-top:1px solid var(--rule-soft);font-size:13.5px;color:var(--bone-dim);line-height:1.55}
+
+@media (max-width:620px){
+  :root{--card-w:88px;--card-h:144px}
+  .back{margin-left:-40px}
+  .cardread{grid-template-columns:1fr;gap:14px}
+  .cardread .mini{width:132px}
+  .slot .posq{display:none}
+  body{font-size:16px}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation-duration:.001ms!important;transition-duration:.001ms!important}
+  .glyph{opacity:1;transform:none}
+}
+@media print{
+  body{background:#fff;color:#111;padding:0}
+  .noprint,.masthead,.plate:not(.report){display:none!important}
+  .plate.report{border:0;background:#fff;box-shadow:none;padding:0;margin:0}
+  .plate.report::after{display:none}
+  .sec .lbl,.byline{color:#7A4E28}
+  .qblock{border-color:#7A4E28}
+  .num,.tally div{background:#fff;color:#111}
+  .num p,.footnote,.byline{color:#444}
+  .kw{color:#2c6b5c}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead noprint">
+    <svg class="mark" viewBox="0 0 48 48" fill="none" aria-hidden="true">
+      <circle cx="24" cy="24" r="21" stroke="#B87A47" stroke-width="1"/>
+      <circle cx="24" cy="24" r="15" stroke="#6FB3A0" stroke-width="1" opacity=".7"/>
+      <path d="M24 6 L38 38 L10 20 L38 20 L10 38 Z" stroke="#E3A868" stroke-width="1" stroke-linejoin="round"/>
+    </svg>
+    <h1>The <em>Copperplate</em></h1>
+    <p>Your name worked out as numbers, three cards drawn against a question, and one reading that puts them together.</p>
+    <div class="rule-orn"><i></i><b></b><i></i></div>
+  </header>
+
+  <!-- STEP 1 — NAME -->
+  <section class="plate noprint" id="step-name">
+    <p class="eyebrow">First</p>
+    <h2>The name you were given</h2>
+    <p class="lede">Numerology reads character from the <strong>full name recorded at birth</strong> — first, any middle, and last. That's the one to use here.</p>
+    <label class="field" for="nameInput">Full name at birth</label>
+    <input type="text" id="nameInput" autocomplete="name" spellcheck="false" placeholder="e.g. Eleanor Marie Whitfield">
+    <p class="err" id="nameErr"></p>
+    <div class="actions">
+      <button class="btn solid" id="toQuestion">Work out the numbers</button>
+    </div>
+    <p class="note">Why the birth name: in the Pythagorean system the name you were first given is treated as the blueprint — the character you arrived with. A married name or nickname describes how you're read now, not what you're made of. If you go by a different name entirely, run it a second time and compare.</p>
+  </section>
+
+  <!-- STEP 2 — NUMEROLOGY -->
+  <section class="plate noprint" id="step-nums" hidden>
+    <p class="eyebrow">Your numbers</p>
+    <h2 id="numsTitle">The arithmetic of a name</h2>
+    <p class="lede">Each letter carries a value, one through nine. Vowels are struck in copper — they feed the private number. Consonants are struck in bone — they feed the public one.</p>
+    <div class="strip" id="strip" aria-label="Your name converted to numbers"></div>
+    <div class="strip-key">
+      <span><i class="c"></i> Vowels → Soul Urge</span>
+      <span><i></i> Consonants → Personality</span>
+      <span>All letters → Expression</span>
+    </div>
+    <div class="nums" id="nums"></div>
+    <div class="actions">
+      <button class="btn solid" id="toDeck">Ask your question</button>
+      <button class="btn ghost" id="backToName">Change the name</button>
+    </div>
+  </section>
+
+  <!-- STEP 3 — QUESTION + DRAW -->
+  <section class="plate noprint" id="step-draw" hidden>
+    <p class="eyebrow">Second</p>
+    <h2>Hold a question</h2>
+    <p class="lede">Ask something open. "What am I not seeing about this job?" reads better than "will I get the job?" — the cards describe a situation, they don't vote on it.</p>
+    <label class="field" for="qInput">Your question</label>
+    <textarea id="qInput" placeholder="What should I understand about…"></textarea>
+    <p class="err" id="qErr"></p>
+
+    <div class="deckmeta" style="margin-top:30px">
+      <span id="drawCount">Draw three — 0 of 3</span>
+      <button class="btn ghost" id="shuffleBtn" style="padding:9px 16px">Shuffle again</button>
+    </div>
+    <div class="deckwrap">
+      <div class="ribbon" id="ribbon" role="group" aria-label="Face-down deck, 78 cards"></div>
+    </div>
+
+    <div class="slots" id="slots"></div>
+
+    <div class="actions">
+      <button class="btn solid" id="revealBtn" disabled>Turn the cards</button>
+      <button class="btn ghost" id="backToNums">Back to my numbers</button>
+    </div>
+  </section>
+
+  <!-- STEP 4 — READING -->
+  <section class="plate report" id="step-read" hidden>
+    <div id="reportBody"></div>
+    <div class="actions noprint">
+      <button class="btn solid" id="pdfBtn">Save PDF report</button>
+      <button class="btn ghost" id="restartBtn">Start a new reading</button>
+    </div>
+  </section>
+
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" crossorigin="anonymous"></script>
+<script>
+/* ============================================================
+   DATA — numerology meanings
+   ============================================================ */
+const NUM = {
+  1:{t:"The Initiator",e:"Will, originality, the nerve to go first.",
+     c:"You are built to start things. Left to your own devices you invent rather than inherit, and you'd rather do it imperfectly your own way than perfectly someone else's. Authority sits naturally on you, which is why being managed chafes.",
+     g:"Decisiveness, originality, courage under a blank page.",
+     s:"Impatience with slower people; going it alone when help was available.",
+     l:"the will to begin alone",
+     co:"Start it. Your number does not learn by consensus, it learns by moving."},
+  2:{t:"The Diplomat",e:"Sensitivity, partnership, the intelligence of pairs.",
+     c:"You read a room before you enter it. Your gift is relation — you see how pieces fit, where a conversation is about to break, what someone means underneath what they said. You do your best work beside someone, not above them.",
+     g:"Tact, patience, an ear that catches what others miss.",
+     s:"Conflict avoided until it compounds; your own needs filed last.",
+     l:"the intelligence of pairs",
+     co:"Say the thing you've been softening. Your number's strength is accuracy about people, not comfort."},
+  3:{t:"The Communicator",e:"Expression, wit, delight taken seriously.",
+     c:"You think by saying, drawing, making. An idea isn't real to you until it's been expressed and reflected back. You lift the mood of rooms almost involuntarily, and you scatter almost as easily — three good projects at forty percent each.",
+     g:"Charm, imagination, an instinct for the right words.",
+     s:"Scattering; using lightness to skate past what hurts.",
+     l:"expression as a way of thinking",
+     co:"Finish one. The joy is real, but your number's shadow is a trail of unfinished good ideas."},
+  4:{t:"The Builder",e:"Order, craft, the long patient job.",
+     c:"You trust what can be tested. Systems, foundations, honest work done twice if needed — these are your instruments, and they make you the person everyone else quietly depends on. You'd rather be reliable than dazzling.",
+     g:"Discipline, follow-through, an eye for what will actually hold.",
+     s:"Rigidity; mistaking the plan for the point.",
+     l:"structure as a form of safety",
+     co:"Leave one thing unsettled on purpose. Not everything that matters can be scheduled."},
+  5:{t:"The Adventurer",e:"Freedom, appetite, change as a nutrient.",
+     c:"You need motion the way other people need routine. Curiosity pulls you across disciplines and geographies, and you learn faster in five directions than most people do in one. Cages of any kind — jobs, habits, promises made too fast — you feel before you see.",
+     g:"Adaptability, nerve, a talent for the unfamiliar.",
+     s:"Restlessness; leaving right before the good part.",
+     l:"appetite for the next thing",
+     co:"Stay two weeks past the point of boredom. That's where your number finds what it's been looking for."},
+  6:{t:"The Caretaker",e:"Responsibility, beauty, love with its sleeves rolled up.",
+     c:"You take charge of the people and places around you, often before being asked. Home, harmony, fairness, aesthetics — you feel their absence physically. Your judgment about what people need is unusually good; your judgment about what you need is worse.",
+     g:"Devotion, generosity, a steadying presence.",
+     s:"Carrying what isn't yours; help offered as quiet control.",
+     l:"duty to the people you love",
+     co:"Ask what you want before you ask what's needed. Your number rarely runs that order on its own."},
+  7:{t:"The Seeker",e:"Depth, analysis, the need to know before you trust.",
+     c:"You go under the surface of things by instinct. Solitude restores you, noise costs you, and you'd rather be alone with a real question than in company with a shallow one. People experience you as private, sometimes as distant — usually you were just thinking.",
+     g:"Insight, integrity, an unusual tolerance for not knowing yet.",
+     s:"Withdrawal; analysis used as a place to hide from choosing.",
+     l:"the need to understand before you commit",
+     co:"Decide before you feel ready. Your number can research a thing forever."},
+  8:{t:"The Executive",e:"Power, judgment, results that show in the world.",
+     c:"You measure things — money, effect, scale, whether it worked. There's an appetite in you for consequence, and a real talent for organising people and resources toward it. You recover from setbacks faster than almost anyone, because you read them as data.",
+     g:"Authority, resilience, a clear head about what things cost.",
+     s:"Overwork; valuing yourself by the size of the result.",
+     l:"the drive to make it count in the visible world",
+     co:"Name what you'd still want if nobody kept score. That answer is your number's blind spot."},
+  9:{t:"The Humanitarian",e:"Compassion, breadth, the art of letting go.",
+     c:"You see the whole rather than the piece, which makes you generous and occasionally impractical. Endings are your specialty — you know how to close things, forgive things, and move a wider circle of people forward. What's hard is admitting your own smaller, more personal wants.",
+     g:"Empathy, perspective, an instinct for what matters at the end.",
+     s:"Martyrdom; holding on to a grievance the world has already moved past.",
+     l:"the wide view and the long release",
+     co:"Let it finish. Your number's power is in the clean ending, not the extended one."},
+  11:{t:"The Illuminator",e:"Master number over 2 — intuition at high voltage.",
+     c:"You pick up signals other people miss and you can't easily turn it off. Ideas and impressions arrive whole, ahead of the reasoning that would justify them, which makes you inspiring to be near and hard to be inside. Nervous energy is the price of the antenna.",
+     g:"Vision, sensitivity, the ability to say what a group is feeling.",
+     s:"Anxiety, self-doubt, an antenna with no volume control.",
+     l:"nerve endings tuned too high to ignore",
+     co:"Ground it in something ordinary and daily. Your number needs a body to run through."},
+  22:{t:"The Master Builder",e:"Master number over 4 — vision made structural.",
+     c:"You see something large and you can also see the scaffolding it would take. That combination is rare and heavy: you're not satisfied by small competent work, and you're impatient with dreams nobody costed. When you commit, you build things that outlast you.",
+     g:"Scale, practicality, the nerve to attempt the big version.",
+     s:"Pressure; disappointment when reality delivers at ordinary speed.",
+     l:"a blueprint that demands to be built",
+     co:"Break it into a first stone. Your number stalls on the whole cathedral."},
+  33:{t:"The Teacher",e:"Master number over 6 — care raised to a vocation.",
+     c:"You lift the people around you as a matter of course, and it registers in how they talk about you. Your instinct is to give, teach, repair. The number asks for that giving to be chosen rather than automatic — otherwise it drains rather than transmits.",
+     g:"Compassion at scale, patience, a genuinely steadying influence.",
+     s:"Self-erasure; taking responsibility for outcomes that were never yours.",
+     l:"care raised to a vocation",
+     co:"Give from surplus, not from reserve. Your number burns clean or it burns out."}
+};
+
+/* suit glyphs, drawn rather than illustrated — Marseille-style pips */
+const PIP = {
+  Wands:'<svg viewBox="0 0 20 40" fill="none" stroke="#7A4E28" stroke-width="1.6"><path d="M10 38V6"/><path d="M10 6 3 12M10 6l7 6M10 14l-5 4M10 14l5 4"/></svg>',
+  Cups:'<svg viewBox="0 0 24 40" fill="none" stroke="#7A4E28" stroke-width="1.6"><path d="M4 8h16c0 9-4 13-8 13S4 17 4 8Z"/><path d="M12 21v10M6 33h12"/></svg>',
+  Swords:'<svg viewBox="0 0 20 40" fill="none" stroke="#7A4E28" stroke-width="1.6"><path d="M10 2 14 12v18l-4 6-4-6V12Z"/><path d="M2 22h16"/></svg>',
+  Pentacles:'<svg viewBox="0 0 32 32" fill="none" stroke="#7A4E28" stroke-width="1.6"><circle cx="16" cy="16" r="13"/><path d="M16 5l7.2 22-18.7-13.6h23L8.8 27Z" stroke-linejoin="round"/></svg>'
+};
+
+/* ============================================================
+   DATA — the 78 cards
+   n name | v number | s suit (null = major) | ku upright keys | kr reversed keys
+   u upright meaning | r reversed meaning
+   ============================================================ */
+const MAJOR = [
+ ["The Fool",0,"beginnings, faith, the leap","recklessness, hesitation",
+  "A start made without a map, and the nerve that makes it possible. Something is genuinely new here.",
+  "Either a leap taken carelessly, or a leap you keep rehearsing and never take."],
+ ["The Magician",1,"will, focus, resource","manipulation, scattered power",
+  "You already hold the materials. This is about concentrating them on one point instead of admiring the collection.",
+  "Talent spent on the wrong target, or persuasion used where honesty was owed."],
+ ["The High Priestess",2,"intuition, the unspoken, patience","secrets, ignored instinct",
+  "The answer exists but hasn't surfaced in words yet. Wait, watch, and trust the quiet read.",
+  "Something is being withheld — by someone else, or by you from yourself."],
+ ["The Empress",3,"abundance, care, fertility of any kind","smothering, creative block",
+  "Growth that comes from tending rather than forcing. Comfort, making, and the body all count here.",
+  "Care that has tipped into control, or a well that feels dry because it hasn't been refilled."],
+ ["The Emperor",4,"structure, authority, boundaries","rigidity, control",
+  "Order applied on purpose. Rules, limits and someone taking responsibility are what this situation is short of.",
+  "Authority that has hardened past its usefulness — yours, or someone's over you."],
+ ["The Hierophant",5,"tradition, mentorship, belonging","dogma, breaking rank",
+  "An established path, an institution, or a teacher who knows the way. Convention is working in your favour.",
+  "The inherited rule no longer fits, and you're deciding whether to say so out loud."],
+ ["The Lovers",6,"union, values, a real choice","misalignment, avoidance",
+  "A choice that reveals what you actually value — often between two goods, not a good and a bad.",
+  "A decision dodged, or a bond where the two of you want different things and haven't said."],
+ ["The Chariot",7,"drive, control, forward motion","stalling, opposed forces",
+  "Momentum through willpower. Two opposing pulls harnessed to move in one direction.",
+  "Effort without a heading, or a fight where pushing harder is exactly the wrong tool."],
+ ["Strength",8,"courage, patience, steady nerve","self-doubt, force",
+  "The gentle grip that outlasts the hard one. Power kept in hand rather than spent.",
+  "Nerve that has thinned, or an attempt to overpower something that only yields to patience."],
+ ["The Hermit",9,"solitude, search, inner light","isolation, avoidance",
+  "Withdrawal on purpose, to hear yourself. The answer arrives when the noise drops.",
+  "Solitude that stopped being nourishing, or advice refused out of pride."],
+ ["Wheel of Fortune",10,"turning, luck, cycles","resistance, bad timing",
+  "Circumstances move without your permission. The skill is reading the turn, not stopping it.",
+  "Fighting a cycle that's going to complete anyway; timing running against you for now."],
+ ["Justice",11,"truth, consequence, balance","imbalance, evasion",
+  "Cause and effect, plainly. What was set in motion is arriving, and fairness is the measure.",
+  "An account not squared, a bias unexamined, or responsibility placed on the wrong shoulders."],
+ ["The Hanged Man",12,"suspension, reversal of view, sacrifice","stalling, martyrdom",
+  "A useful pause. Seeing this from upside down is the whole point of the delay.",
+  "Waiting mistaken for wisdom, or a sacrifice made mostly so it can be noticed."],
+ ["Death",13,"ending, transformation, clearing","clinging, slow change",
+  "Something concludes so something else can exist. Rarely literal, always non-negotiable.",
+  "Holding the door shut on an ending that has already happened elsewhere."],
+ ["Temperance",14,"blending, moderation, patience","excess, imbalance",
+  "The right proportion, found slowly. Two things that seemed opposed are being combined.",
+  "Too much of one ingredient. The mix is off and everyone can taste it."],
+ ["The Devil",15,"attachment, appetite, the bargain","release, seeing the chain",
+  "A pattern with a hook in it — pleasure, status, fear, a habit. The chains are loose; that's the uncomfortable part.",
+  "The grip loosening. You can see the mechanism now, which is most of getting free."],
+ ["The Tower",16,"sudden change, collapse, truth","delayed reckoning, fear of change",
+  "A structure built on something false comes down fast. Painful, clarifying, and usually overdue.",
+  "The crack is visible and being patched. Postponement, not prevention."],
+ ["The Star",17,"hope, repair, quiet faith","discouragement, faith withheld",
+  "Calm after damage. Something is healing, and the way forward is modest, steady and real.",
+  "Hope that's been rationed. The repair is available; the belief in it isn't yet."],
+ ["The Moon",18,"uncertainty, dream, distortion","clarity returning, fear named",
+  "Not everything here is what it appears. Anxiety and intuition are speaking in the same voice.",
+  "The fog thinning. What frightened you is turning out to have an ordinary shape."],
+ ["The Sun",19,"clarity, vitality, plain good","dimmed joy, delay",
+  "Warmth without a catch. Things are visible, alive and going well — take the yes.",
+  "Good is present but discounted, or a bright thing arriving later than promised."],
+ ["Judgement",20,"reckoning, calling, awakening","self-judgement, hesitation",
+  "A summing up. You see the whole arc of something and answer a call you've been half-hearing.",
+  "The verdict delivered too harshly on yourself, or a call heard and left unanswered."],
+ ["The World",21,"completion, wholeness, arrival","near-miss, loose ends",
+  "A cycle closes properly. Whatever this is has reached its finished form.",
+  "Almost done. Something small and unglamorous remains before it can actually close."]
+];
+
+const SUITS = {
+ Wands:[
+  ["the spark, raw drive, an offer of fire","false start, energy without a vessel",
+   "An impulse arrives with real heat in it. This wants a body — a project, a first message, a start.",
+   "The spark hasn't been fed, or the enthusiasm is running ahead of anything solid."],
+  ["choosing a horizon, planning from a height","fear of leaving the known, plans on paper",
+   "Standing at the edge of your own map, deciding how far out to go.",
+   "The plan never leaves the room, or the horizon was chosen for the wrong reasons."],
+  ["first returns, expansion, ships sighted","delays, overreach",
+   "Something you sent out earlier begins to come back. The view is longer than it was.",
+   "Slower than promised, or a reach that exceeded the supply line."],
+  ["arrival, a threshold worth marking","an unfinished homecoming",
+   "Stability reached and worth celebrating. Foundation, ceremony, coming home.",
+   "The milestone feels hollow, or the ground under the celebration isn't set yet."],
+  ["friction, competition among equals","conflict avoided, or gone underground",
+   "Several people who all want to build, colliding. Productive if it stays honest.",
+   "Argument suppressed rather than resolved, or a fight that's stopped being about anything."],
+  ["recognition, a public win","winning without witness, doubt after applause",
+   "Effort acknowledged out loud. Take the credit; it's earned.",
+   "Praise that didn't come, or arrived and didn't land the way you expected."],
+  ["holding ground, defending the position","overwhelmed, defending too long",
+   "You're higher up than the pressure suggests. Hold it.",
+   "A position defended past its usefulness, or a defence that's costing more than the ground."],
+  ["speed, messages landing, everything at once","scattered energy, timing off",
+   "Things move quickly now. News, travel, momentum arriving in a rush.",
+   "Too many directions at once, or a message that missed its moment."],
+  ["tired but still standing guard","guardedness turned to suspicion",
+   "Weary resilience. You've been at this a while and you're still here, which counts.",
+   "Vigilance that's become armour, keeping out the help along with the threat."],
+  ["carrying more than the task requires","setting the load down, or refusing to",
+   "The load is real, and some of it isn't yours. This is about burden, not capability.",
+   "Either relief is at hand, or you're being asked to admit you can't carry it alone."],
+  ["eager first attempt, news of an opening","enthusiasm without follow-through",
+   "A beginner's fire — the willingness to try badly and learn fast.",
+   "Excitement that evaporates when the work starts, or news that doesn't hold up."],
+  ["bold movement, momentum, going now","haste outrunning the plan",
+   "Charging forward with conviction. Speed is an asset here.",
+   "Action taken before the thinking finished; a lot of motion, little progress."],
+  ["warm confident authority","self-doubt behind the intensity",
+   "Presence that draws people in without demanding it. Confidence that leaves room for others.",
+   "Certainty performed over an insecurity, or warmth that's run hot into irritability."],
+  ["vision others will follow","force used where persuasion was needed",
+   "Leadership by conviction. You see the direction and can make it legible to others.",
+   "Authority swung as a hammer; a good idea damaged by how it was delivered."]
+ ],
+ Cups:[
+  ["an opening of the heart, an offer of feeling","feeling withheld or spilled",
+   "Something tender is being offered — by a person, or by life. The correct response is to accept it.",
+   "The cup held back, or emotion poured out somewhere it can't be received."],
+  ["a genuine meeting between two","imbalance, a bond needing repair",
+   "Mutual recognition. Partnership, reconciliation, an equal exchange.",
+   "One person giving more than the other, or a rift that's still open."],
+  ["gladness shared, community, celebration","crowding, celebration masking distance",
+   "Joy that needs other people in the room to be complete.",
+   "Company without closeness, or a group that's become an obligation."],
+  ["an offer overlooked, contented boredom","attention returning, the sulk lifts",
+   "Something is being handed to you while you look elsewhere, bored by what you already have.",
+   "Interest coming back. You're ready to look up."],
+  ["grief fixed on what spilled","turning to see what's still standing",
+   "Real loss, honestly felt — and two cups still upright behind you.",
+   "The turn toward what remains. Acceptance beginning."],
+  ["sweetness of the past, an old kindness returning","nostalgia that blocks the present",
+   "Memory, childhood, someone from before. A gentleness that comes from a long way back.",
+   "The past kept warmer than the present, at the present's expense."],
+  ["many appealing options, few real ones","clarity, choosing one",
+   "Imagination running ahead of reality. Most of these doors are painted on.",
+   "The fog lifts and one option turns out to be the actual one."],
+  ["walking away from what no longer nourishes","staying too long, or leaving too fast",
+   "A deliberate departure from something that was fine and is no longer enough.",
+   "The exit delayed past its moment, or taken as an escape rather than a choice."],
+  ["satisfaction, a wish met","pleasure that doesn't reach the deeper want",
+   "Contentment, arriving as ordered. Enjoy this without inspecting it.",
+   "The wish granted on the surface, missing the thing underneath it."],
+  ["belonging, a settled joy","a picture of harmony that costs too much",
+   "Emotional completeness — family, chosen or given, and the peace of being among your people.",
+   "Keeping up the appearance of harmony at the expense of the real thing."],
+  ["a tender message, curiosity of the heart","feelings dramatised or hidden",
+   "An unexpected feeling, an invitation, or news that touches you.",
+   "Emotion turned into a performance, or swallowed entirely."],
+  ["an invitation, romance in motion","promises made faster than kept",
+   "Someone or something arrives bearing an offer with feeling in it.",
+   "Charm without follow-through; a beautiful proposal that thins in daylight."],
+  ["feeling held with skill and care","absorbing others' moods until yours blur",
+   "Deep emotional intelligence, used well. Compassion that doesn't lose its footing.",
+   "Boundaries dissolved; carrying feelings that were never yours to carry."],
+  ["composure that doesn't deny feeling","control used to keep feeling at a distance",
+   "Mastery of the emotional weather — calm at the centre without going cold.",
+   "Serenity used as a wall; a lid held down on something that needs saying."]
+ ],
+ Swords:[
+  ["a clean cut of clarity, the truth named","truth used as a weapon, confusion",
+   "The fact arrives whole. Naming it accurately is the entire move.",
+   "Clarity wielded to wound, or a mind that can't find the edge of the problem."],
+  ["a decision refused, balanced on a blindfold","the blindfold off, stalemate breaking",
+   "Two options held in perfect suspension, mostly to avoid choosing.",
+   "The refusal ends. Information arrives and the balance tips."],
+  ["a plain sorrow, the honest wound","release, or a hurt rehearsed too long",
+   "Direct heartache, seen clearly. There's nothing to reframe here yet.",
+   "Either the pain is draining out, or it's being kept alive by retelling."],
+  ["rest as necessity, the mind laid down","restlessness, returning too soon",
+   "A deliberate stop. Recovery is the work right now.",
+   "Rest refused, or a return to the fray before anything healed."],
+  ["winning at cost, hollow victory","amends, or refusing to make them",
+   "A conflict where being right costs more than it returns.",
+   "The reckoning after: repair offered, or pride keeping the field."],
+  ["passage to calmer water","carrying the trouble with you",
+   "Leaving a difficulty behind by moving, not by solving. That's allowed.",
+   "The move made, the problem packed in the luggage."],
+  ["strategy, or something taken quietly","getting caught, or coming clean",
+   "Cleverness, a workaround, or something being done out of sight.",
+   "The manoeuvre exposed — or confessed before it was."],
+  ["bound by the story about the situation","the ropes loosening, seeing the exit",
+   "Feeling trapped by circumstances that are, on inspection, mostly narrative.",
+   "The bindings slacken. The way out was always slightly closer than it looked."],
+  ["the mind at 3am, dread out of proportion","naming the fear, and it shrinks",
+   "Anxiety in full voice. The fear is real; its size is not.",
+   "Said out loud to someone, the thing loses most of its weight."],
+  ["an ending already complete","the slow crawl back, refusing the ending",
+   "Rock bottom, and the strange relief of it. Nothing further can fall.",
+   "Recovery beginning, or an insistence on staying down past the point of use."],
+  ["watchfulness, a question sharply asked","gossip, vigilance turned to suspicion",
+   "Curiosity with an edge. Ask, observe, gather information.",
+   "Watching that's curdled into distrust, or words moving where they shouldn't."],
+  ["charging in with an argument","speed without direction, words as blades",
+   "Direct, fast, uncompromising communication. Sometimes exactly right.",
+   "Force applied to a conversation; being right at maximum volume."],
+  ["unsentimental clear judgement","coldness, feeling cut off",
+   "Perception without flattery. The honest read, delivered by someone who's earned it.",
+   "Clarity gone cold; a verdict handed down where warmth was needed."],
+  ["authority through principle","rules used to avoid people",
+   "Standards, ethics, and the intelligence to apply them consistently.",
+   "Principle hardened into policy; the letter kept, the spirit lost."]
+ ],
+ Pentacles:[
+  ["a seed with real ground under it","an opportunity mishandled or unplanted",
+   "A tangible opening — money, health, work, something with substance.",
+   "The offer exists but isn't being planted, or the ground was never prepared."],
+  ["juggling with grace, keeping it afloat","overcommitment, dropped balls",
+   "Balancing several real demands, and doing it better than you think.",
+   "One thing too many. Something is about to hit the floor."],
+  ["skill recognised, working with others","mismatched standards, work undervalued",
+   "Craft meeting collaboration. Your part is seen and it fits.",
+   "Effort unacknowledged, or a team pulling to different specifications."],
+  ["holding on for security","the grip loosening, or tightening",
+   "Keeping what you have. Prudent, up to the point where it becomes fear.",
+   "Either you're letting go of the clutch, or squeezing hard enough to break the thing."],
+  ["hardship, standing outside the warm room","recovery, help accepted",
+   "A lean stretch — material, physical or the loneliness that rides with it.",
+   "The turn upward. Assistance is there and can be taken."],
+  ["giving and receiving in fair measure","strings attached, uneven exchange",
+   "Generosity with the accounts balanced — as giver or receiver.",
+   "Help that comes with a debt, or a power difference dressed as charity."],
+  ["pausing to assess the growth","impatience, tending the wrong crop",
+   "Stepping back to see whether what you've planted is worth continuing.",
+   "Wanting the harvest early, or years invested in the wrong field."],
+  ["practice, the craft repeated until good","rote work, or perfectionism stalling",
+   "Diligence. The unglamorous repetition that turns competence into skill.",
+   "Going through motions, or polishing something that needed shipping."],
+  ["earned self-sufficiency, a life you built","comfort at the cost of company",
+   "Independence with something to show for it. You made this.",
+   "A well-appointed solitude that's begun to feel like a locked garden."],
+  ["legacy, what lasts past you","family or money entanglement",
+   "The long view — inheritance, institutions, what outlives the people who built it.",
+   "Wealth or family as a knot; obligations inherited rather than chosen."],
+  ["a student's beginning, an offer to learn","plans that never break ground",
+   "New study, a first job, a practical opportunity with a long runway.",
+   "Ambition that stays theoretical; the course never started."],
+  ["steady unglamorous progress","stubbornness, stalling",
+   "Reliability as a strategy. Slow, deliberate, and it gets there.",
+   "Progress stopped and called patience; a rut defended as a routine."],
+  ["practical nurture, resourcefulness","smothering, or self-neglect",
+   "Competence and warmth together — the person who feeds you and fixes the boiler.",
+   "Everyone tended except yourself, or care that's turned managerial."],
+  ["mastery of the material world","status mistaken for security",
+   "Established, capable, generous with what's been built. Money and body in order.",
+   "Wealth guarded anxiously; worth measured only in what's countable."]
+ ]
+};
+const COURTS = ["Page","Knight","Queen","King"];
+
+function buildDeck(){
+  const d = MAJOR.map((m,i)=>({n:m[0],v:m[1],s:null,ku:m[2],kr:m[3],u:m[4],r:m[5],id:"M"+i}));
+  Object.keys(SUITS).forEach(suit=>{
+    SUITS[suit].forEach((c,i)=>{
+      const v=i+1;
+      const rank = v===1?"Ace":v<=10?["","Ace","Two","Three","Four","Five","Six","Seven","Eight","Nine","Ten"][v]:COURTS[v-11];
+      d.push({n:rank+" of "+suit,v:v,s:suit,ku:c[0],kr:c[1],u:c[2],r:c[3],id:suit[0]+v});
+    });
+  });
+  return d;
+}
+const DECK = buildDeck();
+
+const POSITIONS = [
+  {k:"The Root",  q:"What the question actually grows from", pair:"Soul Urge",
+   f:"Underneath the question, feeding it:"},
+  {k:"The Turn",  q:"What is live and moving right now",     pair:"Personality",
+   f:"At work in the situation as it stands:"},
+  {k:"The Course",q:"Where it runs if nothing is forced",    pair:"Expression",
+   f:"The direction of travel from here:"}
+];
+/* ============================================================
+   NUMEROLOGY ENGINE  (Pythagorean)
+   ============================================================ */
+const VALS = {A:1,B:2,C:3,D:4,E:5,F:6,G:7,H:8,I:9,J:1,K:2,L:3,M:4,N:5,O:6,P:7,Q:8,R:9,S:1,T:2,U:3,V:4,W:5,X:6,Y:7,Z:8};
+const HARD_VOWELS = "AEIOU";
+
+function safeKey(n){ return NUM[n] ? n : 9; }   /* a vowel-less or consonant-less name can total 0 */
+function reduceNum(n){
+  while(n>9 && n!==11 && n!==22 && n!==33){
+    n = String(n).split("").reduce((a,d)=>a+ +d,0);
+  }
+  return n;
+}
+function toSingle(n){ let x=n; while(x>9){ x=String(x).split("").reduce((a,d)=>a+ +d,0);} return x; }
+
+/* Y is treated as a vowel when it does the work of one: no hard vowel
+   directly beside it, and it isn't opening a word in front of a vowel. */
+function yIsVowel(word,i){
+  const prev = word[i-1]||"", next = word[i+1]||"";
+  if(i===0 && next && HARD_VOWELS.includes(next)) return false;
+  if(prev && HARD_VOWELS.includes(prev)) return false;
+  if(next && HARD_VOWELS.includes(next)) return false;
+  return true;
+}
+
+function analyze(raw){
+  const words = raw.toUpperCase().replace(/[^A-Z'\-\s]/g," ").split(/\s+/).filter(Boolean);
+  const tokens = [];
+  words.forEach((w,wi)=>{
+    const letters = w.replace(/[^A-Z]/g,"");
+    for(let i=0;i<letters.length;i++){
+      const ch = letters[i];
+      const vowel = HARD_VOWELS.includes(ch) ? true : (ch==="Y" ? yIsVowel(letters,i) : false);
+      tokens.push({ch, v:VALS[ch], vowel});
+    }
+    if(wi<words.length-1) tokens.push({space:true});
+  });
+  const L = tokens.filter(t=>!t.space);
+  const sumAll = L.reduce((a,t)=>a+t.v,0);
+  const sumV   = L.filter(t=>t.vowel).reduce((a,t)=>a+t.v,0);
+  const sumC   = L.filter(t=>!t.vowel).reduce((a,t)=>a+t.v,0);
+  const chain = arr => arr.map(t=>t.v).join(" + ");
+  return {
+    tokens, letters:L.length,
+    expression:{n:safeKey(reduceNum(sumAll)), sum:sumAll, math:chain(L)},
+    soul:{n:safeKey(reduceNum(sumV)), sum:sumV, math:chain(L.filter(t=>t.vowel))},
+    personality:{n:safeKey(reduceNum(sumC)), sum:sumC, math:chain(L.filter(t=>!t.vowel))}
+  };
+}
+
+function reduceTrail(sum,final){
+  const steps=[sum]; let x=sum;
+  while(x>9 && x!==11 && x!==22 && x!==33){ x=String(x).split("").reduce((a,d)=>a+ +d,0); steps.push(x); }
+  return steps.join(" → ");
+}
+
+/* ============================================================
+   STATE
+   ============================================================ */
+const S = {name:"", first:"", num:null, question:"", order:[], drawn:[], revealed:false, reading:null};
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const show = (id,on)=>{ $(id).hidden = !on; };
+const goto = id => { show(id,true); setTimeout(()=>$(id).scrollIntoView({behavior:"smooth",block:"start"}),60); };
+
+/* ============================================================
+   STEP 1 → 2 : the name
+   ============================================================ */
+$("toQuestion").addEventListener("click", ()=>{
+  const raw = $("nameInput").value.trim();
+  const letters = raw.replace(/[^A-Za-z]/g,"");
+  if(letters.length<2){ $("nameErr").textContent = "Enter the name as it appears on the birth record."; return; }
+  $("nameErr").textContent = "";
+  S.name = raw.replace(/\s+/g," ");
+  S.first = S.name.split(" ")[0];
+  S.num = analyze(S.name);
+  renderNumerology();
+  show("step-name",false);
+  goto("step-nums");
+});
+$("nameInput").addEventListener("keydown", e=>{ if(e.key==="Enter") $("toQuestion").click(); });
+
+function renderNumerology(){
+  const a = S.num;
+  $("numsTitle").textContent = S.name;
+  $("strip").innerHTML = a.tokens.map((t,i)=>{
+    if(t.space) return '<span class="glyph space"></span>';
+    return `<span class="glyph ${t.vowel?"vowel":""}" style="animation-delay:${i*32}ms">
+      <span class="tick"></span><span class="l">${t.ch}</span><span class="v">${t.v}</span></span>`;
+  }).join("");
+
+  const block = (key,label,d,blurb)=>`
+    <div class="num">
+      <div class="k">${label}</div>
+      <div class="big">${d.n}</div>
+      <div class="t">${NUM[d.n].t}</div>
+      <div class="math">${d.math} = ${reduceTrail(d.sum)}</div>
+      <p>${blurb}</p>
+      <div class="tag">Gift · ${NUM[d.n].g}</div>
+      <div class="tag sh">Shadow · ${NUM[d.n].s}</div>
+    </div>`;
+  $("nums").innerHTML =
+    block("e","Expression — all letters", a.expression, NUM[a.expression.n].c) +
+    block("s","Soul Urge — vowels", a.soul, "What you want when nobody's watching: "+NUM[a.soul.n].e.toLowerCase()+" "+NUM[a.soul.n].c.split(". ")[0]+".") +
+    block("p","Personality — consonants", a.personality, "What the room meets first: "+NUM[a.personality.n].e.toLowerCase()+" "+NUM[a.personality.n].c.split(". ")[0]+".");
+}
+
+$("backToName").addEventListener("click", ()=>{ show("step-nums",false); goto("step-name"); });
+$("toDeck").addEventListener("click", ()=>{ show("step-nums",false); goto("step-draw"); $("qInput").focus({preventScroll:true}); });
+$("backToNums").addEventListener("click", ()=>{ show("step-draw",false); goto("step-nums"); });
+
+/* ============================================================
+   CARD RENDERING
+   ============================================================ */
+const ROMAN = ["0","I","II","III","IV","V","VI","VII","VIII","IX","X","XI","XII","XIII","XIV","XV","XVI","XVII","XVIII","XIX","XX","XXI"];
+function faceHTML(c, rev){
+  let art;
+  if(c.s===null){
+    art = `<div class="numeral">${ROMAN[c.v]}</div>`;
+  } else if(c.v<=10){
+    art = `<div class="pips">${PIP[c.s].repeat(c.v)}</div>`;
+  } else {
+    art = `<div class="pips">${PIP[c.s]}</div><div class="court">${COURTS[c.v-11]}</div>`;
+  }
+  return `<div class="face ${rev?"rev":""}">
+      <div class="art">${art}</div>
+      <div class="cname">${esc(c.n)}</div>
+      ${rev?'<div class="revtag">reversed</div>':""}
+    </div>`;
+}
+
+/* ============================================================
+   THE DECK
+   ============================================================ */
+function shuffle(){
+  const a = DECK.map(c=>({card:c, rev:Math.random()<0.45}));
+  for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
+  S.order = a; S.drawn = []; S.revealed=false;
+  renderRibbon(); renderSlots(); updateDrawUI();
+}
+function renderRibbon(){
+  $("ribbon").innerHTML = S.order.map((_,i)=>
+    `<div class="back" role="button" tabindex="0" data-i="${i}" aria-label="Face-down card ${i+1} of 78"></div>`).join("");
+}
+function renderSlots(){
+  $("slots").innerHTML = POSITIONS.map((p,i)=>{
+    const d = S.drawn[i];
+    return `<div class="slot">
+      <div class="pos">${p.k}</div>
+      <div class="posq">${p.q}</div>
+      <div class="holder">
+        ${d ? `<div class="flipper" id="flip${i}">
+                 <div class="side b"></div>
+                 <div class="side f">${faceHTML(d.card,d.rev)}</div>
+               </div>`
+            : `<div class="empty">${i+1}</div>`}
+      </div>
+    </div>`;
+  }).join("");
+}
+function updateDrawUI(){
+  $("drawCount").textContent = `Draw three — ${S.drawn.length} of 3`;
+  $("revealBtn").disabled = S.drawn.length<3 || S.revealed;
+}
+function drawCard(i){
+  if(S.drawn.length>=3 || S.revealed) return;
+  if(!$("qInput").value.trim()){
+    $("qErr").textContent = "Write your question first — the cards are read against it.";
+    $("qInput").focus(); return;
+  }
+  $("qErr").textContent = "";
+  const el = $("ribbon").querySelector(`[data-i="${i}"]`);
+  if(!el || el.classList.contains("taken")) return;
+  el.classList.add("taken"); el.setAttribute("aria-disabled","true"); el.tabIndex=-1;
+  S.drawn.push(S.order[i]);
+  renderSlots(); updateDrawUI();
+}
+$("ribbon").addEventListener("click", e=>{
+  const b = e.target.closest(".back"); if(b) drawCard(+b.dataset.i);
+});
+$("ribbon").addEventListener("keydown", e=>{
+  if(e.key==="Enter"||e.key===" "){ const b=e.target.closest(".back"); if(b){ e.preventDefault(); drawCard(+b.dataset.i);} }
+});
+$("shuffleBtn").addEventListener("click", ()=>{ shuffle(); $("qErr").textContent=""; });
+$("qInput").addEventListener("input", ()=>{ if($("qInput").value.trim()) $("qErr").textContent=""; });
+
+$("revealBtn").addEventListener("click", ()=>{
+  const q = $("qInput").value.trim();
+  if(!q){ $("qErr").textContent="Write your question first."; return; }
+  S.question = q; S.revealed = true; $("revealBtn").disabled = true;
+  [0,1,2].forEach(i=>setTimeout(()=>{ const f=$("flip"+i); if(f) f.classList.add("up"); }, i*380));
+  setTimeout(()=>{
+    S.reading = composeReading();
+    renderReport();
+    show("step-draw",false);
+    goto("step-read");
+  }, 1600);
+});
+
+/* ============================================================
+   THE READING — numerology and cards, put together
+   ============================================================ */
+function pairNumber(label){
+  return label==="Soul Urge" ? S.num.soul.n : label==="Personality" ? S.num.personality.n : S.num.expression.n;
+}
+function composeReading(){
+  const a = S.num, E=a.expression.n, SU=a.soul.n, P=a.personality.n, first=S.first;
+  const secs = [];
+
+  secs.push({lbl:"Who is asking", h:"Your character, in three numbers", paras:[
+    `${first}, your full birth name reduces to an Expression of ${E} — ${NUM[E].t}. ${NUM[E].c}`,
+    `Under that sits a Soul Urge of ${SU}, ${NUM[SU].t}: ${NUM[SU].e.toLowerCase().replace(/\.$/,"")} — the want that runs whether or not anyone is watching. In front of it stands a Personality of ${P}, ${NUM[P].t}: ${NUM[P].e.toLowerCase()} That is the version of you the situation in your question is currently dealing with.`,
+    `The three cards below are each read through one of those numbers — the root through what you want, the turn through how you're seen, the course through what you're built to do.`
+  ]});
+
+  S.drawn.forEach((d,i)=>{
+    const p = POSITIONS[i], c = d.card, rev = d.rev;
+    const pn = pairNumber(p.pair);
+    const meaning = rev ? c.r : c.u;
+    const keys = rev ? c.kr : c.ku;
+    const paras = [`${p.f} <strong>${esc(c.n)}${rev?", reversed":""}</strong>. ${meaning}`];
+
+    if(c.v===0 && c.s===null){
+      paras.push(`The Fool carries no number at all — a nought, the one card in the deck your arithmetic can't claim. Set against your ${p.pair} of ${pn}, that is the whole message: this is the part of the question where your pattern doesn't get to predict the outcome.`);
+    } else {
+      const red = toSingle(c.v), pred = toSingle(pn);
+      if(red===pred){
+        paras.push(`The card's number reduces to ${red}, and so does your ${p.pair} of ${pn}. A direct echo — what this card describes isn't foreign weather arriving from outside, it's your own pattern showing up wearing the situation's clothes. Which means you already know how it behaves.`);
+      } else {
+        paras.push(`The card pulls toward ${keys}. Your ${p.pair} of ${pn} pulls toward ${NUM[pn].l} — ${NUM[pn].e.toLowerCase()} Those aren't the same direction, and the honest part of the answer lives in that gap: ${gapLine(p.pair, pn, rev)}`);
+      }
+    }
+    secs.push({lbl:`${p.k} · read through your ${p.pair} ${pn}`,
+               h:`${c.n}${rev?" (reversed)":""}`, card:d, keys, paras});
+  });
+
+  /* how the three sit together */
+  const majors = S.drawn.filter(d=>d.card.s===null).length;
+  const revs   = S.drawn.filter(d=>d.rev).length;
+  const suits  = {}; S.drawn.forEach(d=>{ if(d.card.s) suits[d.card.s]=(suits[d.card.s]||0)+1; });
+  const domSuit = Object.keys(suits).find(k=>suits[k]>=2);
+  const spreadSum = S.drawn.reduce((t,d)=>t+d.card.v,0);
+  const spreadNum = safeKey(reduceNum(spreadSum));
+  const pat = [];
+
+  pat.push(majors===0
+    ? `Not one Major Arcana card in the spread. This is a situation made of ordinary moving parts — decisions, people, effort, timing — which is good news: almost all of it answers to what you do next.`
+    : majors===3
+    ? `All three cards are Major Arcana. Whatever you asked about is not a small matter and is not entirely yours to steer; it belongs to a larger turn you're inside of. Your job here is orientation, not control.`
+    : `${majors===1?"One card is":"Two cards are"} Major Arcana, ${majors===1?"the rest are":"the other is"} everyday. So part of this is structural and moving on its own schedule, and part of it is squarely in your hands — the useful skill is telling which is which.`);
+
+  if(domSuit){
+    const elem = {Wands:"fire — drive, work, the will to make something happen",
+                  Cups:"water — feeling, attachment, what you actually care about",
+                  Swords:"air — thought, truth, communication and its casualties",
+                  Pentacles:"earth — money, body, work and the material facts"}[domSuit];
+    pat.push(`${domSuit} appears ${suits[domSuit]===3?"three times":"twice"}, which weights the whole reading toward ${elem}. If you've been treating this question as being about something else, that's the correction.`);
+  }
+  pat.push(revs===0
+    ? `Nothing came up reversed. Take the cards at face value; there's no hidden inversion to decode here.`
+    : revs===3
+    ? `All three arrived reversed. Read that as one message rather than three: the energy in this situation is turned inward, blocked, or running in the opposite direction to how it's being described out loud.`
+    : `${revs===1?"One card is":"Two cards are"} reversed — the point where the current runs backwards or the thing is being held rather than expressed.`);
+
+  const eq = toSingle(spreadNum)===toSingle(E);
+  pat.push(`Add the three card numbers — ${S.drawn.map(d=>d.card.v).join(" + ")} = ${spreadSum} → ${spreadNum} — and the spread itself carries a ${spreadNum}, ${NUM[spreadNum].t}. ${eq
+    ? `That matches your Expression ${E}. The reading and the reader are in the same key, which usually means the question is one of the central ones of your life rather than a passing problem.`
+    : `Your Expression is ${E}, ${NUM[E].t}. So the situation is asking for ${NUM[spreadNum].l}, while your instinct supplies ${NUM[E].l}. Borrow the first; don't abandon the second.`}`);
+
+  secs.push({lbl:"The shape of it", h:"How the three sit together", paras:pat});
+
+  secs.push({lbl:"Counsel", h:"What to do with this", paras:[
+    `You asked: “${esc(S.question)}”`,
+    `${NUM[E].co} And watch the familiar failure mode while you do — for an Expression ${E}, that's ${NUM[E].s.toLowerCase()}`,
+    `Read the three cards as one sentence rather than three verdicts: ${S.drawn.map((d,i)=>`${POSITIONS[i].k.toLowerCase()} in ${d.card.n.toLowerCase()}${d.rev?" reversed":""}`).join(", ")}. A tarot spread describes the weather and the terrain. You are still the one walking.`
+  ]});
+
+  return {secs, spreadNum, majors, revs};
+}
+
+function gapLine(label, n, rev){
+  const base = {
+    "Soul Urge":`what you want here isn't what the card is describing, so check whether you've been arguing for the wrong outcome`,
+    "Personality":`how you're being read differs from what's actually happening, so some of this is a misunderstanding rather than a conflict`,
+    "Expression":`your default move isn't the move this asks for, which is exactly why it's been slow`
+  }[label];
+  return base + (rev ? ", and reversed, it's asking you to look at the inside of that rather than the outside." : ".");
+}
+
+/* ============================================================
+   REPORT
+   ============================================================ */
+function renderReport(){
+  const a=S.num, r=S.reading;
+  const d = new Date().toLocaleDateString(undefined,{year:"numeric",month:"long",day:"numeric"});
+  let html = `<h2 class="rtitle">A reading for ${esc(S.name)}</h2>
+    <p class="byline">Three-card spread · ${d} · Expression ${a.expression.n} · Soul Urge ${a.soul.n} · Personality ${a.personality.n}</p>
+    <div class="qblock">“${esc(S.question)}”</div>`;
+
+  html += r.secs.map(s=>{
+    const body = s.paras.map(p=>`<p>${p}</p>`).join("");
+    if(s.card){
+      return `<div class="sec"><div class="lbl">${esc(s.lbl)}</div>
+        <div class="cardread">
+          <div class="mini">${faceHTML(s.card.card, s.card.rev)}</div>
+          <div><h3>${esc(s.h)}</h3>
+            <p class="kw ${s.card.rev?"rev":""}">${esc(s.keys)}</p>${body}</div>
+        </div></div>`;
+    }
+    return `<div class="sec"><div class="lbl">${esc(s.lbl)}</div><h3>${esc(s.h)}</h3>${body}</div>`;
+  }).join("");
+
+  html += `<div class="tally">
+      <div><div class="k">Spread number</div><div class="v">${r.spreadNum}</div></div>
+      <div><div class="k">Major Arcana</div><div class="v">${r.majors} of 3</div></div>
+      <div><div class="k">Reversed</div><div class="v">${r.revs} of 3</div></div>
+      <div><div class="k">Letters counted</div><div class="v">${a.letters}</div></div>
+    </div>
+    <p class="footnote">Method: Pythagorean numerology on the full birth name — A–I are 1–9, J–R are 1–9, S–Z are 1–8, with 11, 22 and 33 left unreduced as master numbers. Y counts as a vowel where no hard vowel sits beside it. Cards were drawn from a full 78-card deck with reversals. Tarot and numerology are frameworks for reflection, not prediction — treat this as a prompt for thinking, not as advice about health, money, or law.</p>`;
+  $("reportBody").innerHTML = html;
+}
+
+$("restartBtn").addEventListener("click", ()=>{
+  show("step-read",false); show("step-nums",false); show("step-draw",false);
+  $("nameInput").value=""; $("qInput").value=""; shuffle();
+  goto("step-name");
+});
+
+/* ============================================================
+   PDF
+   ============================================================ */
+function stripTags(s){ return String(s).replace(/<[^>]+>/g,"").replace(/&amp;/g,"&").replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&quot;/g,'"'); }
+
+$("pdfBtn").addEventListener("click", ()=>{
+  const lib = window.jspdf && window.jspdf.jsPDF;
+  if(!lib){ window.print(); return; }
+  try{ makePDF(new lib({unit:"pt",format:"letter"})); }
+  catch(err){ console.error(err); window.print(); }
+});
+
+function makePDF(doc){
+  const a=S.num, r=S.reading;
+  const M=64, W=doc.internal.pageSize.getWidth(), H=doc.internal.pageSize.getHeight(), CW=W-M*2;
+  let y=M;
+  const COPPER=[122,78,40], INK=[26,38,34], GREY=[110,120,114];
+
+  function room(h){ if(y+h>H-64){ foot(); doc.addPage(); y=M; } }
+  function foot(){
+    doc.setDrawColor(...COPPER); doc.setLineWidth(.5);
+    doc.line(M,H-52,W-M,H-52);
+    doc.setFont("helvetica","normal").setFontSize(7.5).setTextColor(...GREY);
+    doc.text("THE COPPERPLATE — NUMEROLOGY & TAROT", M, H-38);
+    doc.text(String(doc.internal.getNumberOfPages()), W-M, H-38, {align:"right"});
+  }
+  function label(t){
+    room(30); doc.setFont("helvetica","bold").setFontSize(8).setTextColor(...COPPER);
+    doc.text(t.toUpperCase(), M, y); y+=6;
+    doc.setDrawColor(...COPPER).setLineWidth(.4); doc.line(M,y,W-M,y); y+=16;
+  }
+  function head(t,size){
+    room(size+14); doc.setFont("times","normal").setFontSize(size).setTextColor(...INK);
+    const ls=doc.splitTextToSize(t,CW); ls.forEach(l=>{ room(size+6); doc.text(l,M,y); y+=size+3; }); y+=6;
+  }
+  function para(t,opt){
+    const o=opt||{}; const size=o.size||10.5;
+    doc.setFont("times",o.italic?"italic":"normal").setFontSize(size).setTextColor(...(o.color||INK));
+    const x = o.indent? M+16 : M;
+    doc.splitTextToSize(stripTags(t), CW-(o.indent?16:0)).forEach(l=>{
+      room(size+6);
+      if(o.indent){ doc.setDrawColor(...COPPER).setLineWidth(1.2); doc.line(M,y-size+2,M,y+3); }
+      doc.text(l,x,y); y+=size*1.5;
+    });
+    y+=8;
+  }
+
+  /* masthead */
+  doc.setDrawColor(...COPPER).setLineWidth(1.4); doc.line(M,y,W-M,y); y+=4;
+  doc.setLineWidth(.4); doc.line(M,y,W-M,y); y+=30;
+  head("A reading for "+S.name, 24);
+  doc.setFont("helvetica","normal").setFontSize(8).setTextColor(...GREY);
+  doc.text(`THREE-CARD SPREAD  ·  ${new Date().toLocaleDateString(undefined,{year:"numeric",month:"long",day:"numeric"})}`, M, y); y+=22;
+
+  para("“"+S.question+"”", {italic:true, size:13, indent:true});
+  y+=4;
+
+  /* numbers table */
+  label("The numbers of the name");
+  [["Expression (all letters)",a.expression],["Soul Urge (vowels)",a.soul],["Personality (consonants)",a.personality]].forEach(([k,d])=>{
+    room(46);
+    doc.setFont("times","normal").setFontSize(22).setTextColor(...COPPER);
+    doc.text(String(d.n), M, y+4);
+    doc.setFont("helvetica","bold").setFontSize(8).setTextColor(...INK);
+    doc.text(k.toUpperCase(), M+38, y-6);
+    doc.setFont("times","italic").setFontSize(11).setTextColor(...INK);
+    doc.text(NUM[d.n].t, M+38, y+7);
+    doc.setFont("courier","normal").setFontSize(7.5).setTextColor(...GREY);
+    doc.text(`sum ${d.sum} → ${d.n}`, W-M, y+7, {align:"right"});
+    y+=30;
+    doc.setDrawColor(220,214,200).setLineWidth(.4); doc.line(M,y-8,W-M,y-8);
+  });
+  y+=10;
+
+  /* sections */
+  r.secs.forEach(s=>{
+    label(s.lbl);
+    head(s.h, 15);
+    if(s.keys){ para(s.keys.toUpperCase()+(s.card.rev?"  ·  REVERSED":""), {size:8.5,color:GREY}); }
+    s.paras.forEach(p=>para(p));
+    y+=6;
+  });
+
+  /* tally */
+  label("Tally");
+  para(`Spread number ${r.spreadNum} (${NUM[r.spreadNum].t})   ·   Major Arcana ${r.majors} of 3   ·   Reversed ${r.revs} of 3   ·   Letters counted ${a.letters}`,{size:9.5});
+  para("Method: Pythagorean numerology on the full birth name, with 11, 22 and 33 left unreduced. Cards drawn from a full 78-card deck with reversals. Tarot and numerology are frameworks for reflection, not prediction — this is a prompt for thinking, not advice about health, money, or law.",{size:8.5,color:GREY});
+
+  foot();
+  const safe = S.name.replace(/[^A-Za-z0-9]+/g,"-").replace(/^-|-$/g,"") || "reading";
+  doc.save(`reading-${safe}.pdf`);
+}
+
+/* ============================================================
+   GO
+   ============================================================ */
+shuffle();
+</script>
+</body>
+</html>
